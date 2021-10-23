@@ -20,3 +20,5 @@ oglwnd is distributed in the hope that it will be useful, but WITHOUT ANY WARRAN
 - https://github.com/golang/go/wiki/cgo
 - https://pkg.go.dev/cmd/go#hdr-Compile_packages_and_dependencies
 - https://pkg.go.dev/cmd/link
+- https://www.toomanyatoms.com/computer/usb_keyboard_codes.html
+- http://ts.thrustmaster.com/download/accessories/pc/hotas/software/TARGET/TARGET_SCRIPT_EDITOR_basics_v1.2_Appendix.pdf
