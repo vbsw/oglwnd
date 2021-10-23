@@ -9,20 +9,7 @@
 
 #include "oglwnd_win32.h"
 
-static DWORD get_style_from_config() {
-	DWORD style;
-	if (config.borderless)
-		if (config.resizable)
-			style = WS_POPUP;
-		else
-			style = WS_POPUP;
-	else
-		if (config.resizable)
-			style = WS_OVERLAPPEDWINDOW;
-		else
-			style = WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX;
-	return style;
-}
+//MessageBox(NULL, TEXT("hallo"), TEXT("yoyo"), MB_OK | MB_ICONEXCLAMATION);
 
 static DWORD get_style() {
 	DWORD style;
@@ -37,6 +24,60 @@ static DWORD get_style() {
 		else
 			style = WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX;
 	return style;
+}
+
+static void config_wnd_pos_size(const DWORD style) {
+	RECT rect = { 0, 0, config.width, config.height };
+	AdjustWindowRect(&rect, style, FALSE);
+	config.wnd_width = rect.right - rect.left;
+	config.wnd_height = rect.bottom - rect.top;
+
+	if (config.centered) {
+		config.wnd_x = monitor.x + (monitor.width - config.wnd_width) / 2;
+		config.wnd_y = monitor.y + (monitor.height - config.wnd_height) / 2;
+	} else {
+		config.wnd_x = config.x;
+		config.wnd_y = config.y;
+	}
+}
+
+static void set_window_pos(const int x, const int y, const int w, const int h) {
+	const DWORD style = get_style();
+	RECT rect = { x, y, x + w, y + h };
+	AdjustWindowRect(&rect, style, FALSE);
+	const int xNew = rect.left;
+	const int yNew = rect.top;
+	const int wNew = rect.right - rect.left;
+	const int hNew = rect.bottom - rect.top;
+	SetWindowPos(window.hndl, HWND_TOP, xNew, yNew, wNew, hNew, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+}
+
+static void move_window(const int x, const int y, const int w, const int h) {
+	MoveWindow(window.hndl, x, y, w, h, FALSE);
+}
+
+static void set_fullscreen() {
+	SetWindowLong(window.hndl, GWL_STYLE, 0);
+	SetWindowPos(window.hndl, HWND_TOP, monitor.x, monitor.y, monitor.width, monitor.height, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+}
+
+static int process_key_down(const UINT message, const WPARAM wParam, const LPARAM lParam) {
+	const int code = get_keycode(message, wParam, lParam);
+	if (code) {
+		goOnKeyDown(code, pressed[code]++);
+		return 1;
+	}
+	return 0;
+}
+
+static int process_key_up(const UINT message, const WPARAM wParam, const LPARAM lParam) {
+	const int code = get_keycode(message, wParam, lParam);
+	if (code) {
+		pressed[code] = 0;
+		goOnKeyUp(code);
+		return 1;
+	}
+	return 0;
 }
 
 static void init_module_handle(int *const err) {
@@ -69,8 +110,9 @@ static void init_dummy_class(int *const err) {
 static void init_dummy_window(int *const err) {
 	if (*err == 0 && (!wglChoosePixelFormatARB || !wglCreateContextAttribsARB)) {
 		dummy.hndl = CreateWindow(DUMMY_CLASS_NAME, TEXT("Dummy"), WS_OVERLAPPEDWINDOW, 0, 0, 1, 1, NULL, NULL, instance, NULL);
-		if (!dummy.hndl)
+		if (!dummy.hndl) {
 			*err = 3;
+		}
 	}
 }
 
@@ -125,6 +167,22 @@ static void init_wgl_functions(int *const err) {
 	}
 }
 
+static void init_monitor(int *const err) {
+	if (*err == 0) {
+		if (monitor.hndl == NULL) {
+			monitor.hndl = MonitorFromWindow(dummy.hndl, MONITOR_DEFAULTTONEAREST);
+			if (monitor.hndl == NULL)
+				monitor.hndl = MonitorFromWindow(NULL, MONITOR_DEFAULTTOPRIMARY);
+		}
+		MONITORINFO mi = { sizeof(mi) };
+		GetMonitorInfo(monitor.hndl, &mi);
+		monitor.x = mi.rcMonitor.left;
+		monitor.y = mi.rcMonitor.top;
+		monitor.width = mi.rcMonitor.right - mi.rcMonitor.left;
+		monitor.height = mi.rcMonitor.bottom - mi.rcMonitor.top;
+	}
+}
+
 static void destroy_window(window_t *const wnd) {
 	if (wnd->rc) {
 		wglMakeCurrent(wnd->dc, NULL);
@@ -143,17 +201,80 @@ static void destroy_window(window_t *const wnd) {
 		UnregisterClass(wnd->cls.lpszClassName, instance);
 }
 
+static void get_window_min_max(LPMINMAXINFO const lpMMI) {
+	const int sysWidthMin = GetSystemMetrics(SM_CXMINTRACK);
+	const int sysHeightMin = GetSystemMetrics(SM_CYMINTRACK);
+	const int sysWidthMax = GetSystemMetrics(SM_CXMAXTRACK);
+	const int sysHeightMax = GetSystemMetrics(SM_CYMAXTRACK);
+
+	if (config.fullscreen) {
+		lpMMI->ptMinTrackSize.x = sysWidthMin;
+		lpMMI->ptMinTrackSize.y = sysHeightMin;
+		lpMMI->ptMaxTrackSize.x = sysWidthMax;
+		lpMMI->ptMaxTrackSize.y = sysHeightMax;
+
+	} else {
+		const DWORD style = get_style();
+		RECT rectMin = { 0, 0, config.widthMin, config.heightMin };
+		RECT rectMax = { 0, 0, config.widthMax, config.heightMax };
+
+		AdjustWindowRect(&rectMin, style, FALSE);
+		AdjustWindowRect(&rectMax, style, FALSE);
+
+		const int wndWidthMin = rectMin.right - rectMin.left;
+		const int wndHeightMin = rectMin.bottom - rectMin.top;
+		const int wndWidthMax = rectMax.right - rectMax.left;
+		const int wndHeightMax = rectMax.bottom - rectMax.top;
+
+		if (sysWidthMin <= wndWidthMin && wndWidthMin < wndWidthMax && wndWidthMin < sysWidthMax)
+			lpMMI->ptMinTrackSize.x = wndWidthMin;
+		else
+			lpMMI->ptMinTrackSize.x = sysWidthMin;
+		if (sysHeightMin <= wndHeightMin && wndHeightMin < wndHeightMax && wndHeightMin < sysHeightMax)
+			lpMMI->ptMinTrackSize.y = wndHeightMin;
+		else
+			lpMMI->ptMinTrackSize.y = sysHeightMin;
+		if (sysWidthMax >= wndWidthMax && wndWidthMax > wndWidthMin && wndWidthMax > sysWidthMin)
+			lpMMI->ptMaxTrackSize.x = wndWidthMax;
+		else
+			lpMMI->ptMaxTrackSize.x = sysWidthMax;
+		if (sysHeightMax >= wndHeightMax && wndHeightMax > wndHeightMin && wndHeightMax > sysHeightMin)
+			lpMMI->ptMaxTrackSize.y = wndHeightMax;
+		else
+			lpMMI->ptMaxTrackSize.y = sysHeightMax;
+	}
+}
+
 static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	LRESULT result = 0;
 	switch (message) {
-	case WM_CLOSE:
-		result = DefWindowProc(hWnd, message, wParam, lParam);
-		goOnClose();
-		break;
 	case WM_DESTROY:
 		/* stop event queue thread */
         PostQuitMessage(0);
         break;
+	case WM_CLOSE:
+		result = DefWindowProc(hWnd, message, wParam, lParam);
+		goOnClose();
+		break;
+	case WM_GETMINMAXINFO:
+		get_window_min_max((LPMINMAXINFO)lParam);
+		break;
+	case WM_KEYDOWN:
+		if (!process_key_down(message, wParam, lParam))
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+		break;
+	case WM_KEYUP:
+		if (!process_key_up(message, wParam, lParam))
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+		break;
+	case WM_SYSKEYDOWN:
+		if (!process_key_down(message, wParam, lParam))
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+		break;
+	case WM_SYSKEYUP:
+		if (!process_key_up(message, wParam, lParam))
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+		break;
 	default:
 		result = DefWindowProc(hWnd, message, wParam, lParam);
 	}
@@ -180,8 +301,9 @@ static void init_class(int *const err) {
 
 static void init_window(int *const err) {
 	if (*err == 0) {
-		const DWORD style = get_style_from_config();
-		window.hndl = CreateWindow(CLASS_NAME, TEXT("OpenGL"), style, 0, 0, 640, 480, NULL, NULL, instance, NULL);
+		const DWORD style = get_style();
+		config_wnd_pos_size(style);
+		window.hndl = CreateWindow(CLASS_NAME, TEXT("OpenGL"), style, config.wnd_x, config.wnd_y, config.wnd_width, config.wnd_height, NULL, NULL, instance, NULL);
 		if (!window.hndl)
 			*err = 12;
 	}
@@ -246,6 +368,7 @@ void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int h
 	init_dummy_window(&error);
 	init_dummy_context(&error);
 	init_wgl_functions(&error);
+	init_monitor(&error);
 	destroy_window(&dummy);
 	if (!error) {
 		config.x = x;
@@ -271,6 +394,49 @@ void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int h
 	*err = error;
 }
 
+void oglwnd_get_window_props(int *x, int *y, int *w, int *h, int *wMin, int *hMin, int *wMax, int *hMax, int *b, int *d, int *r, int *f) {
+	*x = client.x;
+	*y = client.y;
+	*w = client.width;
+	*h = client.height;
+	*wMin = config.widthMin;
+	*hMin = config.heightMin;
+	*wMax = config.widthMax;
+	*hMax = config.heightMax;
+	*b = config.borderless;
+	*d = config.dragable;
+	*r = config.resizable;
+	*f = config.fullscreen;
+}
+
+void oglwnd_set_window_props(int x, int y, int w, int h, int wMin, int hMin, int wMax, int hMax, int b, int d, int r, int f) {
+	const int xywh = (x != client.x || y != client.y || w != client.width || h != client.height);
+	const int mm = (wMin != config.widthMin || hMin != config.heightMin || wMax != config.widthMax || hMax != config.heightMax);
+	const int stl = (b != config.borderless || r != config.resizable);
+	const int fs = (f != config.fullscreen);
+	client.x = x;
+	client.y = y;
+	client.width = w;
+	client.height = h;
+	config.widthMin = wMin;
+	config.heightMin = hMin;
+	config.widthMax = wMax;
+	config.heightMax = hMax;
+	config.borderless = b;
+	config.dragable = d;
+	config.resizable = r;
+	config.fullscreen = f;
+	// fullscreen
+	if (fs && f) {
+		set_fullscreen();
+	// window
+	} else if (stl || fs) {
+		set_window_pos(x, y, w, h);
+	} else if (xywh) {
+		move_window(x, y, w, h);
+	}
+}
+
 void oglwnd_show() {
 	ShowWindow(window.hndl, SW_SHOWDEFAULT);
 	running = TRUE;
@@ -289,8 +455,13 @@ void oglwnd_main_loop() {
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
-			if (running)
+			if (running) {
 				goOnUpdate();
+				if (running) {
+					glFinish();
+					SwapBuffers(window.dc);
+				}
+			}
 		}
 	}
 }

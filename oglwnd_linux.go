@@ -12,8 +12,8 @@ package oglwnd
 // #include "oglwnd.h"
 // import "C"
 
-// Show creates a window with OpenGL 3.0 context and starts the main loop.
-func Show(handler Handler) error {
+// Start creates a window with OpenGL 3.0 context and starts the main loop.
+func Start(handler Handler) error {
 	/* TODO */
 	return nil
 }

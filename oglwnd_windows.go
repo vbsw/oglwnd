@@ -15,8 +15,8 @@ import (
 	"errors"
 )
 
-// Show creates a window with OpenGL 3.0 context and starts the main loop.
-func Show(handler Handler) error {
+// Start creates a window with OpenGL 3.0 context and starts the main loop.
+func Start(handler Handler) error {
 	if !running {
 		running = true
 		err = nil
@@ -38,12 +38,10 @@ func Show(handler Handler) error {
 
 func initOGLWindow() {
 	var config Config
-	config.X = 0
-	config.Y = 0
 	config.Width = 640
 	config.Height = 480
-	config.WidthMax = 99999
-	config.HeightMax = 99999
+	config.MaxWidth = 99999
+	config.MaxHeight = 99999
 	config.Centered = true
 	config.Borderless = false
 	config.Dragable = false
@@ -56,10 +54,10 @@ func initOGLWindow() {
 		y := C.int(int(config.Y))
 		w := C.int(int(config.Width))
 		h := C.int(int(config.Height))
-		wMin := C.int(int(config.WidthMin))
-		hMin := C.int(int(config.HeightMin))
-		wMax := C.int(int(config.WidthMax))
-		hMax := C.int(int(config.HeightMax))
+		wMin := C.int(int(config.MinWidth))
+		hMin := C.int(int(config.MinHeight))
+		wMax := C.int(int(config.MaxWidth))
+		hMax := C.int(int(config.MaxHeight))
 		c := boolToCInt(config.Centered)
 		b := boolToCInt(config.Borderless)
 		d := boolToCInt(config.Dragable)
@@ -112,12 +110,27 @@ func errNumToError(errNum int) error {
 		case 17:
 			return errors.New("make context current failed")
 		}
+		return errors.New("oglwnd: unknown error")
 	}
 	return nil
 }
 
 func updateWindowStruct() {
-	/* TODO */
+	var x, y, w, h, wMin, hMin C.int
+	var wMax, hMax, b, d, r, f C.int
+	C.oglwnd_get_window_props(&x, &y, &w, &h, &wMin, &hMin, &wMax, &hMax, &b, &d, &r, &f);
+	window.X = uint(x)
+	window.Y = uint(y)
+	window.Width = uint(w)
+	window.Height = uint(h)
+	window.MinWidth = uint(wMin)
+	window.MinHeight = uint(hMin)
+	window.MaxWidth = uint(wMax)
+	window.MaxHeight = uint(hMax)
+	window.Borderless = bool(b != 0)
+	window.Dragable = bool(d != 0)
+	window.Resizable = bool(r != 0)
+	window.Fullscreen = bool(f != 0)
 }
 
 func updateWindow() {
@@ -125,7 +138,19 @@ func updateWindow() {
 		if window.Quit {
 			C.oglwnd_stop()
 		} else {
-			/* TODO */
+			x := C.int(window.X)
+			y := C.int(window.Y)
+			w := C.int(window.Width)
+			h := C.int(window.Height)
+			wMin := C.int(window.MinWidth)
+			hMin := C.int(window.MinHeight)
+			wMax := C.int(window.MaxWidth)
+			hMax := C.int(window.MaxHeight)
+			b := boolToCInt(window.Borderless)
+			d := boolToCInt(window.Dragable)
+			r := boolToCInt(window.Resizable)
+			f := boolToCInt(window.Fullscreen)
+			C.oglwnd_set_window_props(x, y, w, h, wMin, hMin, wMax, hMax, b, d, r, f);
 		}
 	} else {
 		C.oglwnd_stop()
@@ -150,5 +175,19 @@ func goOnFirstUpdate() {
 func goOnUpdate() {
 	updateWindowStruct()
 	err = hn.OnUpdate(&window)
+	updateWindow()
+}
+
+//export goOnKeyDown
+func goOnKeyDown(key, repeat C.int) {
+	updateWindowStruct()
+	err = hn.OnKeyDown(&window, int(key), int(repeat))
+	updateWindow()
+}
+
+//export goOnKeyUp
+func goOnKeyUp(key C.int) {
+	updateWindowStruct()
+	err = hn.OnKeyUp(&window, int(key))
 	updateWindow()
 }
