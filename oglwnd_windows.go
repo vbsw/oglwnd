@@ -51,8 +51,8 @@ func initOGLWindow() {
 	err = hn.OnConfig(&config)
 	if err == nil {
 		var errNum C.int
-		x := C.int(int(config.X))
-		y := C.int(int(config.Y))
+		x := C.int(config.X)
+		y := C.int(config.Y)
 		w := C.int(int(config.Width))
 		h := C.int(int(config.Height))
 		wMin := C.int(int(config.MinWidth))
@@ -120,8 +120,8 @@ func updateWindowStruct() {
 	var x, y, w, h, wMin, hMin C.int
 	var wMax, hMax, b, d, r, f C.int
 	C.oglwnd_get_window_props(&x, &y, &w, &h, &wMin, &hMin, &wMax, &hMax, &b, &d, &r, &f);
-	window.ClientX = uint(x)
-	window.ClientY = uint(y)
+	window.ClientX = int(x)
+	window.ClientY = int(y)
 	window.ClientW = uint(w)
 	window.ClientH = uint(h)
 	window.MinWidth = uint(wMin)
@@ -212,4 +212,93 @@ func goOnFirstWindowSize() {
 	updateWindowStruct()
 	err = hn.OnFirstWindowSize(&window)
 	updateWindow()
+}
+
+//export goOnMenuEnter
+func goOnMenuEnter() {
+	updateWindowStruct()
+	err = hn.OnMenuEnter(&window)
+	updateWindow()
+}
+
+//export goOnMenuLeave
+func goOnMenuLeave() {
+	updateWindowStruct()
+	err = hn.OnMenuLeave(&window)
+	updateWindow()
+}
+
+//export goOnMaximize
+func goOnMaximize() {
+	updateWindowStruct()
+	err = hn.OnMaximize(&window)
+	updateWindow()
+}
+
+//export goOnMinimize
+func goOnMinimize() {
+	updateWindowStruct()
+	err = hn.OnMinimize(&window)
+	updateWindow()
+}
+
+//export goOnRestore
+func goOnRestore() {
+	updateWindowStruct()
+	err = hn.OnRestore(&window)
+	updateWindow()
+}
+
+//export goOnFocusLoose
+func goOnFocusLoose() {
+	updateWindowStruct()
+	err = hn.OnFocusLoose(&window)
+	updateWindow()
+}
+
+//export goOnFocusGain
+func goOnFocusGain() {
+	updateWindowStruct()
+	err = hn.OnFocusGain(&window)
+	updateWindow()
+}
+
+//export goOnMouseMove
+func goOnMouseMove() {
+	updateWindowStruct()
+	err = hn.OnMouseMove(&window)
+	updateWindow()
+}
+
+//export goOnDragBegin
+func goOnDragBegin() {
+	updateWindowStruct()
+	err = hn.OnDragBegin(&window)
+	updateWindow()
+}
+
+//export goOnDragEnd
+func goOnDragEnd() {
+	updateWindowStruct()
+	err = hn.OnDragEnd(&window)
+	updateWindow()
+}
+
+//export goOnDragCustBegin
+func goOnDragCustBegin() {
+	updateWindowStruct()
+	err = hn.OnDragCustBegin(&window)
+	updateWindow()
+}
+
+//export goOnDragCustEnd
+func goOnDragCustEnd() {
+	updateWindowStruct()
+	err = hn.OnDragCustEnd(&window)
+	updateWindow()
+}
+
+//export goDebug4
+func goDebug4(a, b, c, d C.int) {
+	fmt.Println("debug", int(a), int(b), int(c), int(d))
 }

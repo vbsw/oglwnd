@@ -74,13 +74,18 @@ static struct {
 } config;
 
 static struct {
-	int dragging, locked;
-} state = { 0, 0 };
+	int dragging, dragging_cust, locked;
+	int minimized, maximized;
+} state = { 0, 0, 0, 0, 0 };
 
 static struct {
 	int x, y, width, height;
 	int xW, yW, widthW, heightW;
 } client = { 0, 0, 0, 0 };
+
+static struct {
+	int x, y;
+} mouse = { 0, 0 };
 
 static struct {
 	HMONITOR hndl;
@@ -96,12 +101,26 @@ static int pressed[255];
 #include "_cgo_export.h"
 
 /* Exported functions from Go are:                          */
+/* goOnClose                                                */
 /* goOnFirstUpdate                                          */
 /* goOnUpdate                                               */
-/* goOnClose                                                */
 /* goOnKeyDown                                              */
+/* goOnKeyUp                                                */
 /* goOnWindowMove                                           */
+/* goOnWindowSize                                           */
 /* goOnFirstWindowSize                                      */
+/* goOnMenuEnter                                            */
+/* goOnMenuLeave                                            */
+/* goOnMaximize                                             */
+/* goOnMinimize                                             */
+/* goOnRestore                                              */
+/* goOnFocusLoose                                           */
+/* goOnFocusGain                                            */
+/* goOnMouseMove                                            */
+/* goOnDragBegin                                            */
+/* goOnDragEnd                                              */
+/* goOnDragCustBegin                                        */
+/* goOnDragCustEnd                                          */
 
 static int get_keycode(const UINT message, const WPARAM wParam, const LPARAM lParam) {
 	const int key = (int)(HIWORD(lParam) & 0xff);

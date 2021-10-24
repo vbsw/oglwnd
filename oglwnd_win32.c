@@ -113,6 +113,51 @@ static int process_key_up(const UINT message, const WPARAM wParam, const LPARAM 
 	return 0;
 }
 
+static int process_lb_down(const UINT message, const WPARAM wParam, const LPARAM lParam, const int double_click) {
+	int processed = 0;
+	const LRESULT result = DefWindowProc(window.hndl, WM_NCHITTEST, wParam, lParam);
+	if (result == HTNOWHERE || result == HTCLIENT) {
+		/* hit client */
+		if (mouse.x >= 0 && mouse.x <= client.width && mouse.y >= 0 && mouse.y <= client.height) {
+			if (config.dragable) {
+				state.dragging_cust = 1;
+				goOnDragCustBegin();
+			}
+			SetCapture(window.hndl);
+			processed = 1;
+		}
+	}
+	return processed;
+}
+
+static void drag_begin() {
+	if (!state.dragging) {
+		state.dragging = 1;
+		goOnDragBegin();
+	}
+}
+
+static void drag_end() {
+	if (state.dragging) {
+		state.dragging = 0;
+		goOnDragEnd();
+	}
+}
+
+static void maximize_begin() {
+	if (!state.maximized) {
+		state.maximized = 1;
+		goOnMaximize();
+	}
+}
+
+static void maximize_end() {
+	if (state.maximized) {
+		state.maximized = 0;
+		goOnRestore();
+	}
+}
+
 static void init_module_handle(int *const err) {
 	if (instance == NULL) {
 		instance = GetModuleHandle(NULL);
@@ -280,7 +325,7 @@ static void get_window_min_max(LPMINMAXINFO const lpMMI) {
 
 static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	LRESULT result = 0;
-	if (running) {
+	if (running && !state.minimized) {
 		switch (message) {
 		case WM_MOVE:
 			update_client_props(client.width, client.height);
@@ -299,6 +344,27 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 		case WM_GETMINMAXINFO:
 			get_window_min_max((LPMINMAXINFO)lParam);
 			break;
+		case WM_NCHITTEST:
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+			if (result == HTCAPTION)
+				result = HTCLIENT;
+			break;
+		case WM_NCMOUSEMOVE:
+			drag_end();
+			break;
+		case WM_NCLBUTTONDOWN:
+			if (DefWindowProc(window.hndl, WM_NCHITTEST, wParam, lParam) == HTCAPTION)
+				drag_begin();
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+			break;
+		case WM_NCLBUTTONUP:
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+			drag_end();
+			break;
+		case WM_NCLBUTTONDBLCLK:
+			drag_end();
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+			break;
 		case WM_KEYDOWN:
 			if (!process_key_down(message, wParam, lParam))
 				result = DefWindowProc(hWnd, message, wParam, lParam);
@@ -315,6 +381,51 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			if (!process_key_up(message, wParam, lParam))
 				result = DefWindowProc(hWnd, message, wParam, lParam);
 			break;
+		case WM_SYSCOMMAND:
+			if (wParam == SC_MINIMIZE) {
+				state.minimized = 1;
+				goOnMinimize();
+			}
+			/* ignore window move/resize from menu */
+			if (wParam != SC_MOVE && wParam != SC_SIZE)
+				result = DefWindowProc(hWnd, message, wParam, lParam);
+			break;
+		case WM_MOUSEMOVE:
+			if (state.dragging_cust && !state.maximized) {
+				move_window(client.x + (int)(short)LOWORD(lParam) - mouse.x, client.y + (int)(short)HIWORD(lParam) - mouse.y, client.width, client.height);
+			} else {
+				mouse.x = ((int)(short)LOWORD(lParam));
+				mouse.y = ((int)(short)HIWORD(lParam));
+				result = DefWindowProc(hWnd, message, wParam, lParam);
+			}
+			break;
+		case WM_LBUTTONDOWN:
+			if (!process_lb_down(message, wParam, lParam, 0))
+				result = DefWindowProc(hWnd, message, wParam, lParam);
+			break;
+		case WM_LBUTTONUP:
+			ReleaseCapture();
+			if (state.dragging_cust) {
+				state.dragging_cust = 0;
+				goOnDragCustEnd();
+			}
+			break;
+		case WM_LBUTTONDBLCLK:
+			if (!process_lb_down(message, wParam, lParam, 1))
+				result = DefWindowProc(hWnd, message, wParam, lParam);
+			break;
+		case WM_ENTERMENULOOP:
+			goOnMenuEnter();
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+			break;
+		case WM_EXITMENULOOP:
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+			goOnMenuLeave();
+			break;
+		case WM_EXITSIZEMOVE:
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+			drag_end();
+			break;
 		default:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 		}
@@ -323,6 +434,11 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			/* stop event queue thread */
 			PostQuitMessage(0);
 		result = DefWindowProc(hWnd, message, wParam, lParam);
+		/* restore from minimized and avoid move/resize events */
+		if (message == WM_SETFOCUS && state.minimized) {
+			state.minimized = 0;
+			goOnRestore();
+		}
 	}
 	return result;
 }
@@ -410,6 +526,11 @@ static void init_context(int *const err) {
 
 static void reset_memory() {
 	ZeroMemory(pressed, 255 * sizeof(int));
+	state.dragging = 0;
+	state.dragging_cust = 0;
+	state.locked = 0;
+	state.minimized = 0;
+	state.maximized = 0;
 }
 
 void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int hMax, int c, int b, int d, int r, int f, int *err) {
