@@ -79,6 +79,7 @@ static struct {
 
 static struct {
 	int x, y, width, height;
+	int xW, yW, widthW, heightW;
 } client = { 0, 0, 0, 0 };
 
 static struct {
@@ -99,6 +100,8 @@ static int pressed[255];
 /* goOnUpdate                                               */
 /* goOnClose                                                */
 /* goOnKeyDown                                              */
+/* goOnWindowMove                                           */
+/* goOnFirstWindowSize                                      */
 
 static int get_keycode(const UINT message, const WPARAM wParam, const LPARAM lParam) {
 	const int key = (int)(HIWORD(lParam) & 0xff);

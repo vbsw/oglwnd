@@ -41,22 +41,55 @@ static void config_wnd_pos_size(const DWORD style) {
 	}
 }
 
-static void set_window_pos(const int x, const int y, const int w, const int h) {
-	const DWORD style = get_style();
-	RECT rect = { x, y, x + w, y + h };
+static void get_window_props(const DWORD style, const int clientX, const int clientY, const int clientW, const int clientH, int *const x, int *const y, int *const w, int *const h) {
+	RECT rect = { clientX, clientY, clientX + clientW, clientY + clientH };
 	AdjustWindowRect(&rect, style, FALSE);
-	const int xNew = rect.left;
-	const int yNew = rect.top;
-	const int wNew = rect.right - rect.left;
-	const int hNew = rect.bottom - rect.top;
-	SetWindowPos(window.hndl, HWND_TOP, xNew, yNew, wNew, hNew, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+	*x = rect.left;
+	*y = rect.top;
+	*w = rect.right - rect.left;
+	*h = rect.bottom - rect.top;
 }
 
-static void move_window(const int x, const int y, const int w, const int h) {
+static void set_window_pos(const int clientX, const int clientY, const int clientW, const int clientH) {
+	const DWORD style = get_style();
+	int x, y, w, h;
+	get_window_props(style, clientX, clientY, clientW, clientH, &x, &y, &w, &h);
+	SetWindowLong(window.hndl, GWL_STYLE, style);
+	SetWindowPos(window.hndl, HWND_TOP, x, y, w, h, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+}
+
+static void move_window(const int clientX, const int clientY, const int clientW, const int clientH) {
+	const DWORD style = get_style();
+	int x, y, w, h, s;
+	get_window_props(style, clientX, clientY, clientW, clientH, &x, &y, &w, &h);
 	MoveWindow(window.hndl, x, y, w, h, FALSE);
 }
 
+static void backup_client_props() {
+	client.xW = client.x;
+	client.yW = client.y;
+	client.widthW = client.width;
+	client.heightW = client.height;
+}
+
+static void restore_client_props() {
+	client.x = client.xW;
+	client.y = client.yW;
+	client.width = client.widthW;
+	client.height = client.heightW;
+}
+
+static void update_client_props(const int width, const int height) {
+	POINT point = { 0, 0 };
+	ClientToScreen(window.hndl, &point);
+	client.x = point.x;
+	client.y = point.y;
+	client.width = width;
+	client.height = height;
+}
+
 static void set_fullscreen() {
+	backup_client_props();
 	SetWindowLong(window.hndl, GWL_STYLE, 0);
 	SetWindowPos(window.hndl, HWND_TOP, monitor.x, monitor.y, monitor.width, monitor.height, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 }
@@ -247,35 +280,48 @@ static void get_window_min_max(LPMINMAXINFO const lpMMI) {
 
 static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	LRESULT result = 0;
-	switch (message) {
-	case WM_DESTROY:
-		/* stop event queue thread */
-        PostQuitMessage(0);
-        break;
-	case WM_CLOSE:
-		result = DefWindowProc(hWnd, message, wParam, lParam);
-		goOnClose();
-		break;
-	case WM_GETMINMAXINFO:
-		get_window_min_max((LPMINMAXINFO)lParam);
-		break;
-	case WM_KEYDOWN:
-		if (!process_key_down(message, wParam, lParam))
+	if (running) {
+		switch (message) {
+		case WM_MOVE:
+			update_client_props(client.width, client.height);
 			result = DefWindowProc(hWnd, message, wParam, lParam);
-		break;
-	case WM_KEYUP:
-		if (!process_key_up(message, wParam, lParam))
+			goOnWindowMove();
+			break;
+		case WM_SIZE:
+			update_client_props((int)LOWORD(lParam), (int)HIWORD(lParam));
+			goOnWindowSize();
 			result = DefWindowProc(hWnd, message, wParam, lParam);
-		break;
-	case WM_SYSKEYDOWN:
-		if (!process_key_down(message, wParam, lParam))
+			break;
+		case WM_CLOSE:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
-		break;
-	case WM_SYSKEYUP:
-		if (!process_key_up(message, wParam, lParam))
+			goOnClose();
+			break;
+		case WM_GETMINMAXINFO:
+			get_window_min_max((LPMINMAXINFO)lParam);
+			break;
+		case WM_KEYDOWN:
+			if (!process_key_down(message, wParam, lParam))
+				result = DefWindowProc(hWnd, message, wParam, lParam);
+			break;
+		case WM_KEYUP:
+			if (!process_key_up(message, wParam, lParam))
+				result = DefWindowProc(hWnd, message, wParam, lParam);
+			break;
+		case WM_SYSKEYDOWN:
+			if (!process_key_down(message, wParam, lParam))
+				result = DefWindowProc(hWnd, message, wParam, lParam);
+			break;
+		case WM_SYSKEYUP:
+			if (!process_key_up(message, wParam, lParam))
+				result = DefWindowProc(hWnd, message, wParam, lParam);
+			break;
+		default:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
-		break;
-	default:
+		}
+	} else {
+		if (message == WM_DESTROY)
+			/* stop event queue thread */
+			PostQuitMessage(0);
 		result = DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return result;
@@ -320,8 +366,9 @@ static void init_context(int *const err) {
 				WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
 				WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
 				WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
-				/* WGL_SWAP_EXCHANGE_ARB causes problems in fullscreen */
-				WGL_SWAP_METHOD_ARB, WGL_SWAP_COPY_ARB,
+				/* WGL_SWAP_COPY_ARB has update problems in fullscreen (AMD) */
+				/* WGL_SWAP_EXCHANGE_ARB has problems with start menu in fullscreen (AMD) */
+				WGL_SWAP_METHOD_ARB, WGL_SWAP_EXCHANGE_ARB,
 				WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
 				WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
 				WGL_COLOR_BITS_ARB, 32,
@@ -361,6 +408,10 @@ static void init_context(int *const err) {
 	}
 }
 
+static void reset_memory() {
+	ZeroMemory(pressed, 255 * sizeof(int));
+}
+
 void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int hMax, int c, int b, int d, int r, int f, int *err) {
 	int error = 0;
 	init_module_handle(&error);
@@ -387,7 +438,9 @@ void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int h
 		init_class(&error);
 		init_window(&error);
 		init_context(&error);
-		if (error) {
+		if (!error) {
+			reset_memory();
+		} else {
 			destroy_window(&window);
 		}
 	}
@@ -430,16 +483,30 @@ void oglwnd_set_window_props(int x, int y, int w, int h, int wMin, int hMin, int
 	if (fs && f) {
 		set_fullscreen();
 	// window
-	} else if (stl || fs) {
-		set_window_pos(x, y, w, h);
-	} else if (xywh) {
-		move_window(x, y, w, h);
+	} else if (fs) {
+		if (!xywh)
+			restore_client_props();
+		set_window_pos(client.x, client.y, client.width, client.height);
+	} else if (!f) {
+		if (stl) {
+			set_window_pos(x, y, w, h);
+		} else if (xywh) {
+			move_window(x, y, w, h);
+		}
 	}
 }
 
 void oglwnd_show() {
+	RECT rect;
 	ShowWindow(window.hndl, SW_SHOWDEFAULT);
+	GetClientRect(window.hndl, &rect);
+	update_client_props((int)(rect.right - rect.left), (int)(rect.bottom - rect.top));
+	if (config.fullscreen)
+		set_fullscreen();
+	GetClientRect(window.hndl, &rect);
+	update_client_props((int)(rect.right - rect.left), (int)(rect.bottom - rect.top));
 	running = TRUE;
+	goOnFirstWindowSize();
 }
 
 void oglwnd_main_loop() {

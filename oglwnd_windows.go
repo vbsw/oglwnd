@@ -13,6 +13,7 @@ package oglwnd
 import "C"
 import (
 	"errors"
+	"fmt"
 )
 
 // Start creates a window with OpenGL 3.0 context and starts the main loop.
@@ -119,10 +120,10 @@ func updateWindowStruct() {
 	var x, y, w, h, wMin, hMin C.int
 	var wMax, hMax, b, d, r, f C.int
 	C.oglwnd_get_window_props(&x, &y, &w, &h, &wMin, &hMin, &wMax, &hMax, &b, &d, &r, &f);
-	window.X = uint(x)
-	window.Y = uint(y)
-	window.Width = uint(w)
-	window.Height = uint(h)
+	window.ClientX = uint(x)
+	window.ClientY = uint(y)
+	window.ClientW = uint(w)
+	window.ClientH = uint(h)
 	window.MinWidth = uint(wMin)
 	window.MinHeight = uint(hMin)
 	window.MaxWidth = uint(wMax)
@@ -138,10 +139,10 @@ func updateWindow() {
 		if window.Quit {
 			C.oglwnd_stop()
 		} else {
-			x := C.int(window.X)
-			y := C.int(window.Y)
-			w := C.int(window.Width)
-			h := C.int(window.Height)
+			x := C.int(window.ClientX)
+			y := C.int(window.ClientY)
+			w := C.int(window.ClientW)
+			h := C.int(window.ClientH)
 			wMin := C.int(window.MinWidth)
 			hMin := C.int(window.MinHeight)
 			wMax := C.int(window.MaxWidth)
@@ -189,5 +190,26 @@ func goOnKeyDown(key, repeat C.int) {
 func goOnKeyUp(key C.int) {
 	updateWindowStruct()
 	err = hn.OnKeyUp(&window, int(key))
+	updateWindow()
+}
+
+//export goOnWindowMove
+func goOnWindowMove() {
+	updateWindowStruct()
+	err = hn.OnWindowMove(&window)
+	updateWindow()
+}
+
+//export goOnWindowSize
+func goOnWindowSize() {
+	updateWindowStruct()
+	err = hn.OnWindowSize(&window)
+	updateWindow()
+}
+
+//export goOnFirstWindowSize
+func goOnFirstWindowSize() {
+	updateWindowStruct()
+	err = hn.OnFirstWindowSize(&window)
 	updateWindow()
 }

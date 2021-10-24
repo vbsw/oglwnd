@@ -135,7 +135,8 @@ type Config struct {
 }
 
 type Window struct {
-	X, Y, Width, Height   uint
+	ClientX, ClientY      uint
+	ClientW, ClientH      uint
 	MinWidth, MinHeight   uint
 	MaxWidth, MaxHeight   uint
 	Quit                  bool
@@ -151,6 +152,9 @@ type Handler interface {
 	OnUpdate(window *Window) error
 	OnKeyDown(window *Window, key, repeat int) error
 	OnKeyUp(window *Window, key int) error
+	OnWindowMove(window *Window) error
+	OnWindowSize(window *Window) error
+	OnFirstWindowSize(window *Window) error
 }
 
 type DefaultHandler struct {
@@ -182,6 +186,18 @@ func (dhn *DefaultHandler) OnKeyDown(window *Window, key, repeat int) error {
 }
 
 func (dhn *DefaultHandler) OnKeyUp(window *Window, key int) error {
+	return nil
+}
+
+func (dhn *DefaultHandler) OnWindowMove(window *Window) error {
+	return nil
+}
+
+func (dhn *DefaultHandler) OnWindowSize(window *Window) error {
+	return nil
+}
+
+func (dhn *DefaultHandler) OnFirstWindowSize(window *Window) error {
 	return nil
 }
 
