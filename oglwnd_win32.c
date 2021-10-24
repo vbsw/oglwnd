@@ -91,7 +91,6 @@ static void update_client_props(const int width, const int height) {
 static void update_mouse_pos() {
 	POINT point;
 	GetCursorPos(&point);
-	goDebug4((int)point.x, (int)point.y, (int)client.x, (int)client.y);
 	mouse.x = point.x - client.x;
 	mouse.y = point.y - client.y;
 }
@@ -124,18 +123,98 @@ static int process_key_up(const UINT message, const WPARAM wParam, const LPARAM 
 static int process_lb_down(const UINT message, const WPARAM wParam, const LPARAM lParam, const int double_click) {
 	int processed = 0;
 	const LRESULT result = DefWindowProc(window.hndl, WM_NCHITTEST, wParam, lParam);
-	if (result == HTNOWHERE || result == HTCLIENT) {
-		/* hit client */
-		if (mouse.x >= 0 && mouse.x <= client.width && mouse.y >= 0 && mouse.y <= client.height) {
-			if (config.dragable && !state.maximized) {
-				state.dragging_cust = 1;
-				goOnDragCustBegin();
-			}
-			SetCapture(window.hndl);
-			processed = 1;
+	/* hit client */
+	if (mouse.x >= 0 && mouse.x <= client.width && mouse.y >= 0 && mouse.y <= client.height) {
+		if (config.dragable && !state.maximized) {
+			state.dragging_cust = 1;
+			goOnDragCustBegin();
 		}
+		SetCapture(window.hndl);
+		processed = 1;
+	} else if (mouse.cursor_type) {
+		state.resizing = 1;
+		SetCapture(window.hndl);
 	}
 	return processed;
+}
+
+static LRESULT process_hittest(const LRESULT result) {
+	//goDebug4((int)result,0,0,0);
+	if (!state.resizing) {
+		switch (result) {
+		case HTCLIENT:
+			mouse.cursor_type = 0;
+			mouse.cursor = cursor.cust;
+			return HTCLIENT;
+		case HTTOPLEFT:
+			mouse.cursor_type = 1;
+			mouse.cursor = cursor.nwse;
+			return HTCLIENT;
+		case HTTOP:
+			mouse.cursor_type = 2;
+			mouse.cursor = cursor.ns;
+			return HTCLIENT;
+		case HTTOPRIGHT:
+			mouse.cursor_type = 3;
+			mouse.cursor = cursor.nesw;
+			return HTCLIENT;
+		case HTRIGHT:
+			mouse.cursor_type = 4;
+			mouse.cursor = cursor.we;
+			return HTCLIENT;
+		case HTBOTTOMRIGHT:
+			mouse.cursor_type = 5;
+			mouse.cursor = cursor.nwse;
+			return HTCLIENT;
+		case HTBOTTOM:
+			mouse.cursor_type = 6;
+			mouse.cursor = cursor.ns;
+			return HTCLIENT;
+		case HTBOTTOMLEFT:
+			mouse.cursor_type = 7;
+			mouse.cursor = cursor.nesw;
+			return HTCLIENT;
+		case HTLEFT:
+			mouse.cursor_type = 8;
+			mouse.cursor = cursor.we;
+			return HTCLIENT;
+		case HTBORDER:
+			mouse.cursor_type = 0;
+			mouse.cursor = cursor.cust;
+			return HTBORDER;
+		}
+	}
+	return result;
+}
+
+static void process_resize(const int x, const int y) {
+	switch(mouse.cursor_type) {
+	case 2:
+		break;
+	case 3:
+		move_window(client.x, client.y + (y - mouse.y), client.width + (x - mouse.x), client.height - (y - mouse.y));
+		mouse.x = x;
+		break;
+	case 4:
+		move_window(client.x, client.y, client.width + (x - mouse.x), client.height);
+		mouse.x = x;
+		mouse.y = y;
+		break;
+	case 5:
+		move_window(client.x, client.y, client.width + (x - mouse.x), client.height + (y - mouse.y));
+		mouse.x = x;
+		mouse.y = y;
+		break;
+	case 6:
+		move_window(client.x, client.y, client.width, client.height + (y - mouse.y));
+		mouse.x = x;
+		mouse.y = y;
+		break;
+	case 7:
+		break;
+	case 8:
+		break;
+	}
 }
 
 static void drag_begin() {
@@ -166,11 +245,20 @@ static void maximize_end() {
 	}
 }
 
-static void init_module_handle(int *const err) {
+static void init_module(int *const err) {
 	if (instance == NULL) {
 		instance = GetModuleHandle(NULL);
-		if (instance == NULL)
+		if (instance) {
+			cursor.arrow = LoadCursor(NULL, IDC_ARROW);
+			cursor.nwse = LoadCursor(NULL, IDC_SIZENWSE);
+			cursor.ns = LoadCursor(NULL, IDC_SIZENS);
+			cursor.nesw = LoadCursor(NULL, IDC_SIZENESW);
+			cursor.we = LoadCursor(NULL, IDC_SIZEWE);
+			cursor.cust = cursor.arrow;
+			mouse.cursor = cursor.arrow;
+		} else {
 			*err = 1;
+		}
 	}
 }
 
@@ -183,7 +271,7 @@ static void init_dummy_class(int *const err) {
 		dummy.cls.cbWndExtra = 0;
 		dummy.cls.hInstance = instance;
 		dummy.cls.hIcon = LoadIcon(NULL, IDI_WINLOGO);
-		dummy.cls.hCursor = LoadCursor(NULL, IDC_ARROW);
+		dummy.cls.hCursor = cursor.arrow;
 		dummy.cls.hbrBackground = NULL;
 		dummy.cls.lpszMenuName = NULL;
 		dummy.cls.lpszClassName = DUMMY_CLASS_NAME;
@@ -333,6 +421,7 @@ static void get_window_min_max(LPMINMAXINFO const lpMMI) {
 
 static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	LRESULT result = 0;
+	//goDebug4(0, (int)message, 0, 0);
 	if (running && !state.minimized) {
 		switch (message) {
 		case WM_MOVE:
@@ -355,16 +444,25 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			goOnClose();
 			break;
+		case WM_SETCURSOR:
+			if (HIWORD(lParam) == WM_MOUSEMOVE || HIWORD(lParam) == WM_LBUTTONDOWN) {
+				SetCursor(mouse.cursor);
+				result = TRUE;
+			} else {
+				result = DefWindowProc(hWnd, message, wParam, lParam);
+			}
+			break;
 		case WM_GETMINMAXINFO:
 			get_window_min_max((LPMINMAXINFO)lParam);
 			break;
 		case WM_NCHITTEST:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
-			if (result == HTCAPTION)
-				result = HTCLIENT;
+			result = process_hittest(result);
 			break;
 		case WM_NCMOUSEMOVE:
 			drag_end();
+			mouse.cursor_type = 0;
+			mouse.cursor = cursor.cust;
 			break;
 		case WM_NCLBUTTONDOWN:
 			if (DefWindowProc(window.hndl, WM_NCHITTEST, wParam, lParam) == HTCAPTION)
@@ -413,6 +511,8 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 		case WM_MOUSEMOVE:
 			if (state.dragging_cust && !state.maximized) {
 				move_window(client.x + (int)(short)LOWORD(lParam) - mouse.x, client.y + (int)(short)HIWORD(lParam) - mouse.y, client.width, client.height);
+			} else if (state.resizing) {
+				process_resize((int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam));
 			} else {
 				mouse.x = ((int)(short)LOWORD(lParam));
 				mouse.y = ((int)(short)HIWORD(lParam));
@@ -429,6 +529,7 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 				state.dragging_cust = 0;
 				goOnDragCustEnd();
 			}
+			state.resizing = 0;
 			break;
 		case WM_LBUTTONDBLCLK:
 			if (!process_lb_down(message, wParam, lParam, 1))
@@ -472,7 +573,7 @@ static void init_class(int *const err) {
 	window.cls.cbWndExtra = 0;
 	window.cls.hInstance = instance;
 	window.cls.hIcon = LoadIcon(NULL, IDI_WINLOGO);
-	window.cls.hCursor = LoadCursor(NULL, IDC_ARROW);
+	window.cls.hCursor = cursor.cust;
 	window.cls.hbrBackground = NULL;
 	window.cls.lpszMenuName = NULL;
 	window.cls.lpszClassName = CLASS_NAME;
@@ -547,16 +648,13 @@ static void init_context(int *const err) {
 
 static void reset_memory() {
 	ZeroMemory(pressed, 255 * sizeof(int));
-	state.dragging = 0;
-	state.dragging_cust = 0;
-	state.locked = 0;
-	state.minimized = 0;
-	state.maximized = 0;
+	ZeroMemory(&state, sizeof(state));
+	ZeroMemory(&mouse, sizeof(mouse));
 }
 
 void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int hMax, int c, int b, int d, int r, int f, int *err) {
 	int error = 0;
-	init_module_handle(&error);
+	init_module(&error);
 	init_dummy_class(&error);
 	init_dummy_window(&error);
 	init_dummy_context(&error);
@@ -609,6 +707,12 @@ void oglwnd_set_window_props(int x, int y, int w, int h, int wMin, int hMin, int
 	const int mm = (wMin != config.widthMin || hMin != config.heightMin || wMax != config.widthMax || hMax != config.heightMax);
 	const int stl = (b != config.borderless || r != config.resizable);
 	const int fs = (f != config.fullscreen);
+	/* avoid flickering */
+	if (r != config.resizable && !r && mouse.cursor_type) {
+		mouse.cursor_type = 0;
+		mouse.cursor = cursor.cust;
+		SetCursor(cursor.cust);
+	}
 	client.x = x;
 	client.y = y;
 	client.width = w;

@@ -75,8 +75,8 @@ static struct {
 
 static struct {
 	int dragging, dragging_cust, locked;
-	int minimized, maximized;
-} state = { 0, 0, 0, 0, 0 };
+	int minimized, maximized, resizing;
+} state = { 0, 0, 0, 0, 0, 0 };
 
 static struct {
 	int x, y, width, height;
@@ -84,8 +84,13 @@ static struct {
 } client = { 0, 0, 0, 0 };
 
 static struct {
-	int x, y;
-} mouse = { 0, 0 };
+	int x, y, cursor_type;
+	HCURSOR cursor;
+} mouse = { 0, 0, 0, NULL };
+
+static struct {
+	HCURSOR arrow, nwse, ns, nesw, we, cust;
+} cursor = { NULL, NULL, NULL, NULL, NULL, NULL };
 
 static struct {
 	HMONITOR hndl;
