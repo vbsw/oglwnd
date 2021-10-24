@@ -88,6 +88,14 @@ static void update_client_props(const int width, const int height) {
 	client.height = height;
 }
 
+static void update_mouse_pos() {
+	POINT point;
+	GetCursorPos(&point);
+	goDebug4((int)point.x, (int)point.y, (int)client.x, (int)client.y);
+	mouse.x = point.x - client.x;
+	mouse.y = point.y - client.y;
+}
+
 static void set_fullscreen() {
 	backup_client_props();
 	SetWindowLong(window.hndl, GWL_STYLE, 0);
@@ -119,7 +127,7 @@ static int process_lb_down(const UINT message, const WPARAM wParam, const LPARAM
 	if (result == HTNOWHERE || result == HTCLIENT) {
 		/* hit client */
 		if (mouse.x >= 0 && mouse.x <= client.width && mouse.y >= 0 && mouse.y <= client.height) {
-			if (config.dragable) {
+			if (config.dragable && !state.maximized) {
 				state.dragging_cust = 1;
 				goOnDragCustBegin();
 			}
@@ -334,6 +342,12 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			break;
 		case WM_SIZE:
 			update_client_props((int)LOWORD(lParam), (int)HIWORD(lParam));
+			if (state.dragging) {
+				if (!state.maximized)
+					maximize_begin();
+				else
+					maximize_end();
+			}
 			goOnWindowSize();
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			break;
@@ -385,6 +399,12 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			if (wParam == SC_MINIMIZE) {
 				state.minimized = 1;
 				goOnMinimize();
+			} else if (wParam == SC_MAXIMIZE) {
+				state.maximized = 1;
+				goOnMaximize();
+			} else if (wParam == SC_RESTORE && state.maximized) {
+				state.maximized = 0;
+				goOnRestore();
 			}
 			/* ignore window move/resize from menu */
 			if (wParam != SC_MOVE && wParam != SC_SIZE)
@@ -421,6 +441,7 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 		case WM_EXITMENULOOP:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			goOnMenuLeave();
+			update_mouse_pos();
 			break;
 		case WM_EXITSIZEMOVE:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
