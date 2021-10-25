@@ -130,6 +130,9 @@ static int pressed[255];
 /* goOnDragCustEnd                                          */
 /* goOnResizeBegin                                          */
 /* goOnResizeEnd                                            */
+/* goOnButtonDown                                           */
+/* goOnButtonUp                                             */
+/* goOnWheel                                                */
 
 
 static int get_keycode(const UINT message, const WPARAM wParam, const LPARAM lParam) {

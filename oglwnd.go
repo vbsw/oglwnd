@@ -164,6 +164,9 @@ type Handler interface {
 	OnMouseMove(window *Window) error
 	OnUpdateStop(window *Window) error
 	OnUpdateContinue(window *Window) error
+	OnButtonDown(window *Window, button int, doubleClick bool) error
+	OnButtonUp(window *Window, button int) error
+	OnWheel(window *Window, wheel float32) error
 }
 
 type DefaultHandler struct {
@@ -227,6 +230,18 @@ func (dhn *DefaultHandler) OnUpdateStop(window *Window) error {
 }
 
 func (dhn *DefaultHandler) OnUpdateContinue(window *Window) error {
+	return nil
+}
+
+func (dhn *DefaultHandler) OnButtonDown(window *Window, button int, doubleClick bool) error {
+	return nil
+}
+
+func (dhn *DefaultHandler) OnButtonUp(window *Window, button int) error {
+	return nil
+}
+
+func (dhn *DefaultHandler) OnWheel(window *Window, wheel float32) error {
 	return nil
 }
 

@@ -336,6 +336,27 @@ func goOnResizeEnd() {
 	resizing = false
 }
 
+//export goOnButtonDown
+func goOnButtonDown(button, doubleClick C.int) {
+	updateWindowStruct()
+	err = hn.OnButtonDown(&window, int(button), bool(doubleClick != 0))
+	updateWindow()
+}
+
+//export goOnButtonUp
+func goOnButtonUp(button C.int) {
+	updateWindowStruct()
+	err = hn.OnButtonUp(&window, int(button))
+	updateWindow()
+}
+
+//export goOnWheel
+func goOnWheel(wheel C.float) {
+	updateWindowStruct()
+	err = hn.OnWheel(&window, float32(wheel))
+	updateWindow()
+}
+
 //export goDebug4
 func goDebug4(a, b, c, d C.int) {
 	fmt.Println("debug", int(a), int(b), int(c), int(d))

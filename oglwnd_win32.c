@@ -64,9 +64,7 @@ static void clear_clip_cursor() {
 static void set_mouse_locked(const int locked) {
 	if (config.locked != locked) {
 		config.locked = locked;
-		if (locked)
-			update_clip_cursor();
-		else
+		if (!locked)
 			clear_clip_cursor();
 	}
 }
@@ -149,22 +147,13 @@ static int process_key_up(const UINT message, const WPARAM wParam, const LPARAM 
 	return 0;
 }
 
-static int process_lb_down(const UINT message, const WPARAM wParam, const LPARAM lParam, const int double_click) {
-	int processed = 0;
-	const LRESULT result = DefWindowProc(window.hndl, WM_NCHITTEST, wParam, lParam);
-	/* hit client */
-	if (mouse.x >= 0 && mouse.x <= client.width && mouse.y >= 0 && mouse.y <= client.height) {
-		if (config.dragable && !state.maximized && !config.locked) {
-			state.dragging_cust = 1;
-			goOnDragCustBegin();
-		}
-		SetCapture(window.hndl);
-		processed = 1;
-	} else if (mouse.cursor_type) {
-		state.resizing = 1;
-		SetCapture(window.hndl);
+static void process_lb_down(const UINT message, const WPARAM wParam, const LPARAM lParam, const int double_click) {
+	if (config.dragable && !state.maximized && !config.locked) {
+		state.dragging_cust = 1;
+		goOnDragCustBegin();
 	}
-	return processed;
+	SetCapture(window.hndl);
+	goOnButtonDown(1, double_click);
 }
 
 static LRESULT process_hittest(const LRESULT result) {
@@ -579,8 +568,7 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 				update_clip_cursor();
 			break;
 		case WM_LBUTTONDOWN:
-			if (!process_lb_down(message, wParam, lParam, 0))
-				result = DefWindowProc(hWnd, message, wParam, lParam);
+			process_lb_down(message, wParam, lParam, 0);
 			break;
 		case WM_LBUTTONUP:
 			ReleaseCapture();
@@ -589,10 +577,49 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 				goOnDragCustEnd();
 			}
 			state.resizing = 0;
+			goOnButtonUp(1);
 			break;
 		case WM_LBUTTONDBLCLK:
-			if (!process_lb_down(message, wParam, lParam, 1))
-				result = DefWindowProc(hWnd, message, wParam, lParam);
+			process_lb_down(message, wParam, lParam, 1);
+			break;
+		case WM_RBUTTONDOWN:
+			goOnButtonDown(2, 0);
+			break;
+		case WM_RBUTTONUP:
+			goOnButtonUp(2);
+			break;
+		case WM_RBUTTONDBLCLK:
+			goOnButtonDown(2, 1);
+			break;
+		case WM_MBUTTONDOWN:
+			goOnButtonDown(3, 0);
+			break;
+		case WM_MBUTTONUP:
+			goOnButtonUp(3);
+			break;
+		case WM_MBUTTONDBLCLK:
+			goOnButtonDown(3, 1);
+			break;
+		case WM_MOUSEWHEEL:
+			goOnWheel((float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA);
+			break;
+		case WM_XBUTTONDOWN:
+			if (HIWORD(wParam) == XBUTTON1)
+				goOnButtonDown(4, 0);
+			else if (HIWORD(wParam) == XBUTTON2)
+				goOnButtonDown(5, 0);
+			break;
+		case WM_XBUTTONUP:
+			if (HIWORD(wParam) == XBUTTON1)
+				goOnButtonUp(4);
+			else if (HIWORD(wParam) == XBUTTON2)
+				goOnButtonUp(5);
+			break;
+		case WM_XBUTTONDBLCLK:
+			if (HIWORD(wParam) == XBUTTON1)
+				goOnButtonDown(4, 1);
+			else if (HIWORD(wParam) == XBUTTON2)
+				goOnButtonDown(5, 1);
 			break;
 		case WM_ENTERMENULOOP:
 			goOnMenuEnter();
