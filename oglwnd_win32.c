@@ -101,6 +101,10 @@ static void set_fullscreen() {
 	SetWindowPos(window.hndl, HWND_TOP, monitor.x, monitor.y, monitor.width, monitor.height, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 }
 
+static void clear_keys() {
+	ZeroMemory(pressed, 255 * sizeof(int));
+}
+
 static int process_key_down(const UINT message, const WPARAM wParam, const LPARAM lParam) {
 	const int code = get_keycode(message, wParam, lParam);
 	if (code) {
@@ -228,6 +232,20 @@ static void drag_end() {
 	if (state.dragging) {
 		state.dragging = 0;
 		goOnDragEnd();
+	}
+}
+
+static void resize_begin() {
+	if (!state.resizing) {
+		state.resizing = 1;
+		goOnResizeBegin();
+	}
+}
+
+static void resize_end() {
+	if (state.resizing) {
+		state.resizing = 0;
+		goOnResizeEnd();
 	}
 }
 
@@ -421,7 +439,6 @@ static void get_window_min_max(LPMINMAXINFO const lpMMI) {
 
 static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	LRESULT result = 0;
-	//goDebug4(0, (int)message, 0, 0);
 	if (running && !state.minimized) {
 		switch (message) {
 		case WM_MOVE:
@@ -440,41 +457,52 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			goOnWindowSize();
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			break;
+		case WM_SETFOCUS:
+			goOnFocusGain();
+			break;
+		case WM_KILLFOCUS:
+			clear_keys();
+			goOnFocusLoose();
+			break;
 		case WM_CLOSE:
-			result = DefWindowProc(hWnd, message, wParam, lParam);
 			goOnClose();
+			result = DefWindowProc(hWnd, message, wParam, lParam);
 			break;
 		case WM_SETCURSOR:
-			if (HIWORD(lParam) == WM_MOUSEMOVE || HIWORD(lParam) == WM_LBUTTONDOWN) {
+			if (LOWORD(lParam) == HTCLIENT) {
 				SetCursor(mouse.cursor);
 				result = TRUE;
 			} else {
 				result = DefWindowProc(hWnd, message, wParam, lParam);
 			}
+			result = DefWindowProc(hWnd, message, wParam, lParam);
 			break;
 		case WM_GETMINMAXINFO:
 			get_window_min_max((LPMINMAXINFO)lParam);
 			break;
 		case WM_NCHITTEST:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
-			result = process_hittest(result);
 			break;
 		case WM_NCMOUSEMOVE:
 			drag_end();
-			mouse.cursor_type = 0;
-			mouse.cursor = cursor.cust;
+			resize_end();
 			break;
 		case WM_NCLBUTTONDOWN:
-			if (DefWindowProc(window.hndl, WM_NCHITTEST, wParam, lParam) == HTCAPTION)
+			result = DefWindowProc(window.hndl, WM_NCHITTEST, wParam, lParam);
+			if (result == HTCAPTION)
 				drag_begin();
+			else if (result == HTTOPLEFT || result == HTTOP || result == HTTOPRIGHT || result == HTRIGHT || result == HTBOTTOMRIGHT || result == HTBOTTOM || result == HTBOTTOMLEFT || result == HTLEFT)
+				resize_begin();
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			break;
 		case WM_NCLBUTTONUP:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			drag_end();
+			resize_end();
 			break;
 		case WM_NCLBUTTONDBLCLK:
 			drag_end();
+			resize_end();
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			break;
 		case WM_KEYDOWN:
@@ -498,15 +526,16 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 				state.minimized = 1;
 				goOnMinimize();
 			} else if (wParam == SC_MAXIMIZE) {
-				state.maximized = 1;
-				goOnMaximize();
+				maximize_begin();
 			} else if (wParam == SC_RESTORE && state.maximized) {
 				state.maximized = 0;
 				goOnRestore();
+			} else if (wParam == SC_MOVE) {
+				drag_begin();
+			} else if (wParam == SC_SIZE) {
+				resize_begin();
 			}
-			/* ignore window move/resize from menu */
-			if (wParam != SC_MOVE && wParam != SC_SIZE)
-				result = DefWindowProc(hWnd, message, wParam, lParam);
+			result = DefWindowProc(hWnd, message, wParam, lParam);
 			break;
 		case WM_MOUSEMOVE:
 			if (state.dragging_cust && !state.maximized) {
@@ -542,11 +571,14 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 		case WM_EXITMENULOOP:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			goOnMenuLeave();
+			drag_end();
+			resize_end();
 			update_mouse_pos();
 			break;
 		case WM_EXITSIZEMOVE:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			drag_end();
+			resize_end();
 			break;
 		default:
 			result = DefWindowProc(hWnd, message, wParam, lParam);
@@ -560,6 +592,8 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 		if (message == WM_SETFOCUS && state.minimized) {
 			state.minimized = 0;
 			goOnRestore();
+			drag_end();
+			resize_end();
 		}
 	}
 	return result;
@@ -647,7 +681,7 @@ static void init_context(int *const err) {
 }
 
 static void reset_memory() {
-	ZeroMemory(pressed, 255 * sizeof(int));
+	clear_keys();
 	ZeroMemory(&state, sizeof(state));
 	ZeroMemory(&mouse, sizeof(mouse));
 }

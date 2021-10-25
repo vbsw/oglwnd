@@ -298,6 +298,20 @@ func goOnDragCustEnd() {
 	updateWindow()
 }
 
+//export goOnResizeBegin
+func goOnResizeBegin() {
+	updateWindowStruct()
+	err = hn.OnResizeBegin(&window)
+	updateWindow()
+}
+
+//export goOnResizeEnd
+func goOnResizeEnd() {
+	updateWindowStruct()
+	err = hn.OnResizeEnd(&window)
+	updateWindow()
+}
+
 //export goDebug4
 func goDebug4(a, b, c, d C.int) {
 	fmt.Println("debug", int(a), int(b), int(c), int(d))

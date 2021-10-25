@@ -168,6 +168,8 @@ type Handler interface {
 	OnDragEnd(window *Window) error
 	OnDragCustBegin(window *Window) error
 	OnDragCustEnd(window *Window) error
+	OnResizeBegin(window *Window) error
+	OnResizeEnd(window *Window) error
 }
 
 type DefaultHandler struct {
@@ -259,6 +261,14 @@ func (dhn *DefaultHandler) OnDragCustBegin(window *Window) error {
 }
 
 func (dhn *DefaultHandler) OnDragCustEnd(window *Window) error {
+	return nil
+}
+
+func (dhn *DefaultHandler) OnResizeBegin(window *Window) error {
+	return nil
+}
+
+func (dhn *DefaultHandler) OnResizeEnd(window *Window) error {
 	return nil
 }
 

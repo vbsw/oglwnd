@@ -126,6 +126,9 @@ static int pressed[255];
 /* goOnDragEnd                                              */
 /* goOnDragCustBegin                                        */
 /* goOnDragCustEnd                                          */
+/* goOnResizeBegin                                          */
+/* goOnResizeEnd                                            */
+
 
 static int get_keycode(const UINT message, const WPARAM wParam, const LPARAM lParam) {
 	const int key = (int)(HIWORD(lParam) & 0xff);
