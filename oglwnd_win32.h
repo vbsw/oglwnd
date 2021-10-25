@@ -70,13 +70,15 @@ static struct {
 	int centered;
 	int borderless, dragable;
 	int resizable, fullscreen;
+	int locked;
 	int wnd_x, wnd_y, wnd_width, wnd_height;
 } config;
 
 static struct {
 	int dragging, dragging_cust, locked;
 	int minimized, maximized, resizing;
-} state = { 0, 0, 0, 0, 0, 0 };
+	int focus;
+} state = { 0, 0, 0, 0, 0, 0, 0 };
 
 static struct {
 	int x, y, width, height;

@@ -50,12 +50,35 @@ static void get_window_props(const DWORD style, const int clientX, const int cli
 	*h = rect.bottom - rect.top;
 }
 
+static void update_clip_cursor() {
+	const RECT rect = { client.x, client.y, client.x + client.width, client.y + client.height };
+	ClipCursor(&rect);
+	state.locked = 1;
+}
+
+static void clear_clip_cursor() {
+	ClipCursor(NULL);
+	state.locked = 0;
+}
+
+static void set_mouse_locked(const int locked) {
+	if (config.locked != locked) {
+		config.locked = locked;
+		if (locked)
+			update_clip_cursor();
+		else
+			clear_clip_cursor();
+	}
+}
+
 static void set_window_pos(const int clientX, const int clientY, const int clientW, const int clientH) {
 	const DWORD style = get_style();
 	int x, y, w, h;
 	get_window_props(style, clientX, clientY, clientW, clientH, &x, &y, &w, &h);
 	SetWindowLong(window.hndl, GWL_STYLE, style);
 	SetWindowPos(window.hndl, HWND_TOP, x, y, w, h, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+	if (config.locked)
+		update_clip_cursor();
 }
 
 static void move_window(const int clientX, const int clientY, const int clientW, const int clientH) {
@@ -99,6 +122,8 @@ static void set_fullscreen() {
 	backup_client_props();
 	SetWindowLong(window.hndl, GWL_STYLE, 0);
 	SetWindowPos(window.hndl, HWND_TOP, monitor.x, monitor.y, monitor.width, monitor.height, SWP_NOOWNERZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+	if (config.locked)
+		update_clip_cursor();
 }
 
 static void clear_keys() {
@@ -129,7 +154,7 @@ static int process_lb_down(const UINT message, const WPARAM wParam, const LPARAM
 	const LRESULT result = DefWindowProc(window.hndl, WM_NCHITTEST, wParam, lParam);
 	/* hit client */
 	if (mouse.x >= 0 && mouse.x <= client.width && mouse.y >= 0 && mouse.y <= client.height) {
-		if (config.dragable && !state.maximized) {
+		if (config.dragable && !state.maximized && !config.locked) {
 			state.dragging_cust = 1;
 			goOnDragCustBegin();
 		}
@@ -458,10 +483,13 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			break;
 		case WM_SETFOCUS:
+			state.focus = 1;
 			goOnFocusGain();
 			break;
 		case WM_KILLFOCUS:
+			state.focus = 0;
 			clear_keys();
+			clear_clip_cursor();
 			goOnFocusLoose();
 			break;
 		case WM_CLOSE:
@@ -547,6 +575,8 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 				mouse.y = ((int)(short)HIWORD(lParam));
 				result = DefWindowProc(hWnd, message, wParam, lParam);
 			}
+			if (config.locked && !state.locked && state.focus)
+				update_clip_cursor();
 			break;
 		case WM_LBUTTONDOWN:
 			if (!process_lb_down(message, wParam, lParam, 0))
@@ -588,12 +618,15 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			/* stop event queue thread */
 			PostQuitMessage(0);
 		result = DefWindowProc(hWnd, message, wParam, lParam);
-		/* restore from minimized and avoid move/resize events */
-		if (message == WM_SETFOCUS && state.minimized) {
-			state.minimized = 0;
-			goOnRestore();
-			drag_end();
-			resize_end();
+		if (message == WM_SETFOCUS) {
+			state.focus = 1;
+			/* restore from minimized and avoid move/resize events */
+			if (state.minimized) {
+				state.minimized = 0;
+				goOnRestore();
+				drag_end();
+				resize_end();
+			}
 		}
 	}
 	return result;
@@ -686,7 +719,7 @@ static void reset_memory() {
 	ZeroMemory(&mouse, sizeof(mouse));
 }
 
-void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int hMax, int c, int b, int d, int r, int f, int *err) {
+void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int hMax, int c, int b, int d, int r, int f, int l, int *err) {
 	int error = 0;
 	init_module(&error);
 	init_dummy_class(&error);
@@ -709,6 +742,7 @@ void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int h
 		config.dragable = d;
 		config.resizable = r;
 		config.fullscreen = f;
+		config.locked = l;
 		init_class(&error);
 		init_window(&error);
 		init_context(&error);
@@ -721,7 +755,7 @@ void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int h
 	*err = error;
 }
 
-void oglwnd_get_window_props(int *x, int *y, int *w, int *h, int *wMin, int *hMin, int *wMax, int *hMax, int *b, int *d, int *r, int *f) {
+void oglwnd_get_window_props(int *x, int *y, int *w, int *h, int *wMin, int *hMin, int *wMax, int *hMax, int *b, int *d, int *r, int *f, int *l) {
 	*x = client.x;
 	*y = client.y;
 	*w = client.width;
@@ -734,9 +768,10 @@ void oglwnd_get_window_props(int *x, int *y, int *w, int *h, int *wMin, int *hMi
 	*d = config.dragable;
 	*r = config.resizable;
 	*f = config.fullscreen;
+	*l = config.locked;
 }
 
-void oglwnd_set_window_props(int x, int y, int w, int h, int wMin, int hMin, int wMax, int hMax, int b, int d, int r, int f) {
+void oglwnd_set_window_props(int x, int y, int w, int h, int wMin, int hMin, int wMax, int hMax, int b, int d, int r, int f, int l) {
 	const int xywh = (x != client.x || y != client.y || w != client.width || h != client.height);
 	const int mm = (wMin != config.widthMin || hMin != config.heightMin || wMax != config.widthMax || hMax != config.heightMax);
 	const int stl = (b != config.borderless || r != config.resizable);
@@ -774,6 +809,7 @@ void oglwnd_set_window_props(int x, int y, int w, int h, int wMin, int hMin, int
 			move_window(x, y, w, h);
 		}
 	}
+	set_mouse_locked(l);
 }
 
 void oglwnd_show() {

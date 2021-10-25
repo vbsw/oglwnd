@@ -133,6 +133,7 @@ type Config struct {
 	Quit, Centered        bool
 	Borderless, Dragable  bool
 	Resizable, Fullscreen bool
+	MouseLocked           bool
 }
 
 type Window struct {
@@ -143,6 +144,7 @@ type Window struct {
 	Quit                  bool
 	Borderless, Dragable  bool
 	Resizable, Fullscreen bool
+	MouseLocked           bool
 }
 
 type Handler interface {

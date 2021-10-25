@@ -53,6 +53,7 @@ func initOGLWindow() {
 	config.Dragable = false
 	config.Resizable = true
 	config.Fullscreen = false
+	config.MouseLocked = false
 	err = hn.OnConfig(&config)
 	if err == nil {
 		var errNum C.int
@@ -69,7 +70,8 @@ func initOGLWindow() {
 		d := boolToCInt(config.Dragable)
 		r := boolToCInt(config.Resizable)
 		f := boolToCInt(config.Fullscreen)
-		C.oglwnd_init(x, y, w, h, wMin, hMin, wMax, hMax, c, b, d, r, f, &errNum)
+		l := boolToCInt(config.MouseLocked)
+		C.oglwnd_init(x, y, w, h, wMin, hMin, wMax, hMax, c, b, d, r, f, l, &errNum)
 		err = errNumToError(int(errNum))
 	}
 }
@@ -123,8 +125,8 @@ func errNumToError(errNum int) error {
 
 func updateWindowStruct() {
 	var x, y, w, h, wMin, hMin C.int
-	var wMax, hMax, b, d, r, f C.int
-	C.oglwnd_get_window_props(&x, &y, &w, &h, &wMin, &hMin, &wMax, &hMax, &b, &d, &r, &f);
+	var wMax, hMax, b, d, r, f, l C.int
+	C.oglwnd_get_window_props(&x, &y, &w, &h, &wMin, &hMin, &wMax, &hMax, &b, &d, &r, &f, &l);
 	window.ClientX = int(x)
 	window.ClientY = int(y)
 	window.ClientW = uint(w)
@@ -137,6 +139,7 @@ func updateWindowStruct() {
 	window.Dragable = bool(d != 0)
 	window.Resizable = bool(r != 0)
 	window.Fullscreen = bool(f != 0)
+	window.MouseLocked = bool(l != 0)
 }
 
 func updateWindow() {
@@ -156,7 +159,8 @@ func updateWindow() {
 			d := boolToCInt(window.Dragable)
 			r := boolToCInt(window.Resizable)
 			f := boolToCInt(window.Fullscreen)
-			C.oglwnd_set_window_props(x, y, w, h, wMin, hMin, wMax, hMax, b, d, r, f);
+			l := boolToCInt(window.MouseLocked)
+			C.oglwnd_set_window_props(x, y, w, h, wMin, hMin, wMax, hMax, b, d, r, f, l);
 		}
 	} else {
 		C.oglwnd_stop()
