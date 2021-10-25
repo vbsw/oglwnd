@@ -156,20 +156,12 @@ type Handler interface {
 	OnWindowMove(window *Window) error
 	OnWindowSize(window *Window) error
 	OnFirstWindowSize(window *Window) error
-	OnMenuEnter(window *Window) error
-	OnMenuLeave(window *Window) error
-	OnMaximize(window *Window) error
-	OnMinimize(window *Window) error
 	OnRestore(window *Window) error
 	OnFocusLoose(window *Window) error
 	OnFocusGain(window *Window) error
 	OnMouseMove(window *Window) error
-	OnDragBegin(window *Window) error
-	OnDragEnd(window *Window) error
-	OnDragCustBegin(window *Window) error
-	OnDragCustEnd(window *Window) error
-	OnResizeBegin(window *Window) error
-	OnResizeEnd(window *Window) error
+	OnUpdateStop(window *Window) error
+	OnUpdateContinue(window *Window) error
 }
 
 type DefaultHandler struct {
@@ -216,26 +208,6 @@ func (dhn *DefaultHandler) OnFirstWindowSize(window *Window) error {
 	return nil
 }
 
-func (dhn *DefaultHandler) OnMenuEnter(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnMenuLeave(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnMaximize(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnMinimize(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnRestore(window *Window) error {
-	return nil
-}
-
 func (dhn *DefaultHandler) OnFocusLoose(window *Window) error {
 	return nil
 }
@@ -248,27 +220,11 @@ func (dhn *DefaultHandler) OnMouseMove(window *Window) error {
 	return nil
 }
 
-func (dhn *DefaultHandler) OnDragBegin(window *Window) error {
+func (dhn *DefaultHandler) OnUpdateStop(window *Window) error {
 	return nil
 }
 
-func (dhn *DefaultHandler) OnDragEnd(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnDragCustBegin(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnDragCustEnd(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnResizeBegin(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnResizeEnd(window *Window) error {
+func (dhn *DefaultHandler) OnUpdateContinue(window *Window) error {
 	return nil
 }
 

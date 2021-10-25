@@ -16,11 +16,16 @@ import (
 	"fmt"
 )
 
+var (
+	menu, resizing, dragging, minimized bool
+)
+
 // Start creates a window with OpenGL 3.0 context and starts the main loop.
 func Start(handler Handler) error {
 	if !running {
 		running = true
 		err = nil
+		menu, resizing, dragging, minimized = false, false, false, false
 		hn = handler
 		initOGLWindow()
 		if err == nil {
@@ -216,37 +221,46 @@ func goOnFirstWindowSize() {
 
 //export goOnMenuEnter
 func goOnMenuEnter() {
-	updateWindowStruct()
-	err = hn.OnMenuEnter(&window)
-	updateWindow()
+	if (!resizing && !dragging && !minimized) {
+		updateWindowStruct()
+		err = hn.OnUpdateStop(&window)
+		updateWindow()
+	}
+	menu = true
 }
 
 //export goOnMenuLeave
 func goOnMenuLeave() {
-	updateWindowStruct()
-	err = hn.OnMenuLeave(&window)
-	updateWindow()
+	if (!resizing && !dragging && !minimized) {
+		updateWindowStruct()
+		err = hn.OnUpdateContinue(&window)
+		updateWindow()
+	}
+	menu = false
 }
 
 //export goOnMaximize
 func goOnMaximize() {
-	updateWindowStruct()
-	err = hn.OnMaximize(&window)
-	updateWindow()
 }
 
 //export goOnMinimize
 func goOnMinimize() {
-	updateWindowStruct()
-	err = hn.OnMinimize(&window)
-	updateWindow()
+	if (!menu && !resizing && !dragging) {
+		updateWindowStruct()
+		err = hn.OnUpdateStop(&window)
+		updateWindow()
+	}
+	minimized = true
 }
 
 //export goOnRestore
 func goOnRestore() {
-	updateWindowStruct()
-	err = hn.OnRestore(&window)
-	updateWindow()
+	if (!menu && !resizing && !dragging) {
+		updateWindowStruct()
+		err = hn.OnUpdateContinue(&window)
+		updateWindow()
+	}
+	minimized = false
 }
 
 //export goOnFocusLoose
@@ -272,44 +286,50 @@ func goOnMouseMove() {
 
 //export goOnDragBegin
 func goOnDragBegin() {
-	updateWindowStruct()
-	err = hn.OnDragBegin(&window)
-	updateWindow()
+	if (!menu && !resizing && !minimized) {
+		updateWindowStruct()
+		err = hn.OnUpdateStop(&window)
+		updateWindow()
+	}
+	dragging = true
 }
 
 //export goOnDragEnd
 func goOnDragEnd() {
-	updateWindowStruct()
-	err = hn.OnDragEnd(&window)
-	updateWindow()
+	if (!menu && !resizing && !minimized) {
+		updateWindowStruct()
+		err = hn.OnUpdateContinue(&window)
+		updateWindow()
+	}
+	dragging = false
 }
 
 //export goOnDragCustBegin
 func goOnDragCustBegin() {
-	updateWindowStruct()
-	err = hn.OnDragCustBegin(&window)
-	updateWindow()
 }
 
 //export goOnDragCustEnd
 func goOnDragCustEnd() {
-	updateWindowStruct()
-	err = hn.OnDragCustEnd(&window)
-	updateWindow()
 }
 
 //export goOnResizeBegin
 func goOnResizeBegin() {
-	updateWindowStruct()
-	err = hn.OnResizeBegin(&window)
-	updateWindow()
+	if (!menu && !dragging && !minimized) {
+		updateWindowStruct()
+		err = hn.OnUpdateStop(&window)
+		updateWindow()
+	}
+	resizing = true
 }
 
 //export goOnResizeEnd
 func goOnResizeEnd() {
-	updateWindowStruct()
-	err = hn.OnResizeEnd(&window)
-	updateWindow()
+	if (!menu && !dragging && !minimized) {
+		updateWindowStruct()
+		err = hn.OnUpdateContinue(&window)
+		updateWindow()
+	}
+	resizing = false
 }
 
 //export goDebug4
