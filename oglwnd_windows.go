@@ -13,7 +13,6 @@ package oglwnd
 import "C"
 import (
 	"errors"
-	"fmt"
 )
 
 var (
@@ -40,6 +39,13 @@ func Start(handler Handler) error {
 		return err
 	}
 	return nil
+}
+
+// Clear clears the background with given color. (For test purpose.)
+func Clear(r, g, b, a float32) {
+	if running {
+		C.oglwnd_clear(C.float(r), C.float(g), C.float(b), C.float(a))
+	}
 }
 
 func initOGLWindow() {
@@ -126,7 +132,7 @@ func errNumToError(errNum int) error {
 func updateWindowStruct() {
 	var x, y, w, h, wMin, hMin C.int
 	var wMax, hMax, b, d, r, f, l C.int
-	C.oglwnd_get_window_props(&x, &y, &w, &h, &wMin, &hMin, &wMax, &hMax, &b, &d, &r, &f, &l);
+	C.oglwnd_get_window_props(&x, &y, &w, &h, &wMin, &hMin, &wMax, &hMax, &b, &d, &r, &f, &l)
 	window.ClientX = int(x)
 	window.ClientY = int(y)
 	window.ClientW = uint(w)
@@ -160,7 +166,7 @@ func updateWindow() {
 			r := boolToCInt(window.Resizable)
 			f := boolToCInt(window.Fullscreen)
 			l := boolToCInt(window.MouseLocked)
-			C.oglwnd_set_window_props(x, y, w, h, wMin, hMin, wMax, hMax, b, d, r, f, l);
+			C.oglwnd_set_window_props(x, y, w, h, wMin, hMin, wMax, hMax, b, d, r, f, l)
 		}
 	} else {
 		C.oglwnd_stop()
@@ -202,17 +208,17 @@ func goOnKeyUp(key C.int) {
 	updateWindow()
 }
 
-//export goOnWindowMove
-func goOnWindowMove() {
+//export goOnMove
+func goOnMove() {
 	updateWindowStruct()
-	err = hn.OnWindowMove(&window)
+	err = hn.OnMove(&window)
 	updateWindow()
 }
 
-//export goOnWindowSize
-func goOnWindowSize() {
+//export goOnResize
+func goOnResize() {
 	updateWindowStruct()
-	err = hn.OnWindowSize(&window)
+	err = hn.OnResize(&window)
 	updateWindow()
 }
 
@@ -225,7 +231,7 @@ func goOnFirstWindowSize() {
 
 //export goOnMenuEnter
 func goOnMenuEnter() {
-	if (!resizing && !dragging && !minimized) {
+	if !resizing && !dragging && !minimized {
 		updateWindowStruct()
 		err = hn.OnUpdateStop(&window)
 		updateWindow()
@@ -235,7 +241,7 @@ func goOnMenuEnter() {
 
 //export goOnMenuLeave
 func goOnMenuLeave() {
-	if (!resizing && !dragging && !minimized) {
+	if !resizing && !dragging && !minimized {
 		updateWindowStruct()
 		err = hn.OnUpdateContinue(&window)
 		updateWindow()
@@ -249,7 +255,7 @@ func goOnMaximize() {
 
 //export goOnMinimize
 func goOnMinimize() {
-	if (!menu && !resizing && !dragging) {
+	if !menu && !resizing && !dragging {
 		updateWindowStruct()
 		err = hn.OnUpdateStop(&window)
 		updateWindow()
@@ -259,7 +265,7 @@ func goOnMinimize() {
 
 //export goOnRestore
 func goOnRestore() {
-	if (!menu && !resizing && !dragging) {
+	if !menu && !resizing && !dragging {
 		updateWindowStruct()
 		err = hn.OnUpdateContinue(&window)
 		updateWindow()
@@ -290,7 +296,7 @@ func goOnMouseMove() {
 
 //export goOnDragBegin
 func goOnDragBegin() {
-	if (!menu && !resizing && !minimized) {
+	if !menu && !resizing && !minimized {
 		updateWindowStruct()
 		err = hn.OnUpdateStop(&window)
 		updateWindow()
@@ -300,7 +306,7 @@ func goOnDragBegin() {
 
 //export goOnDragEnd
 func goOnDragEnd() {
-	if (!menu && !resizing && !minimized) {
+	if !menu && !resizing && !minimized {
 		updateWindowStruct()
 		err = hn.OnUpdateContinue(&window)
 		updateWindow()
@@ -318,7 +324,7 @@ func goOnDragCustEnd() {
 
 //export goOnResizeBegin
 func goOnResizeBegin() {
-	if (!menu && !dragging && !minimized) {
+	if !menu && !dragging && !minimized {
 		updateWindowStruct()
 		err = hn.OnUpdateStop(&window)
 		updateWindow()
@@ -328,7 +334,7 @@ func goOnResizeBegin() {
 
 //export goOnResizeEnd
 func goOnResizeEnd() {
-	if (!menu && !dragging && !minimized) {
+	if !menu && !dragging && !minimized {
 		updateWindowStruct()
 		err = hn.OnUpdateContinue(&window)
 		updateWindow()
@@ -355,9 +361,4 @@ func goOnWheel(wheel C.float) {
 	updateWindowStruct()
 	err = hn.OnWheel(&window, float32(wheel))
 	updateWindow()
-}
-
-//export goDebug4
-func goDebug4(a, b, c, d C.int) {
-	fmt.Println("debug", int(a), int(b), int(c), int(d))
 }

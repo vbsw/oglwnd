@@ -9,8 +9,6 @@
 
 #include "oglwnd_win32.h"
 
-//MessageBox(NULL, TEXT("hallo"), TEXT("yoyo"), MB_OK | MB_ICONEXCLAMATION);
-
 static DWORD get_style() {
 	DWORD style;
 	if (config.borderless)
@@ -157,7 +155,6 @@ static void process_lb_down(const UINT message, const WPARAM wParam, const LPARA
 }
 
 static LRESULT process_hittest(const LRESULT result) {
-	//goDebug4((int)result,0,0,0);
 	if (!state.resizing) {
 		switch (result) {
 		case HTCLIENT:
@@ -458,7 +455,7 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 		case WM_MOVE:
 			update_client_props(client.width, client.height);
 			result = DefWindowProc(hWnd, message, wParam, lParam);
-			goOnWindowMove();
+			goOnMove();
 			break;
 		case WM_SIZE:
 			update_client_props((int)LOWORD(lParam), (int)HIWORD(lParam));
@@ -468,7 +465,7 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 				else
 					maximize_end();
 			}
-			goOnWindowSize();
+			goOnResize();
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 			break;
 		case WM_SETFOCUS:
@@ -698,8 +695,8 @@ static void init_context(int *const err) {
 				WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
 				WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
 				WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
-				/* WGL_SWAP_COPY_ARB has update problems in fullscreen (AMD) */
-				/* WGL_SWAP_EXCHANGE_ARB has problems with start menu in fullscreen (AMD) */
+				/* WGL_SWAP_COPY_ARB has update problems in fullscreen */
+				/* WGL_SWAP_EXCHANGE_ARB has problems with start menu in fullscreen */
 				WGL_SWAP_METHOD_ARB, WGL_SWAP_EXCHANGE_ARB,
 				WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
 				WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
@@ -782,6 +779,11 @@ void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int h
 	*err = error;
 }
 
+void oglwnd_clear(const float r, const float g, const float b, const float a) {
+	glClearColor(r, g, b, a);
+	glClear(GL_COLOR_BUFFER_BIT);
+}
+
 void oglwnd_get_window_props(int *x, int *y, int *w, int *h, int *wMin, int *hMin, int *wMax, int *hMax, int *b, int *d, int *r, int *f, int *l) {
 	*x = client.x;
 	*y = client.y;
@@ -803,12 +805,6 @@ void oglwnd_set_window_props(int x, int y, int w, int h, int wMin, int hMin, int
 	const int mm = (wMin != config.widthMin || hMin != config.heightMin || wMax != config.widthMax || hMax != config.heightMax);
 	const int stl = (b != config.borderless || r != config.resizable);
 	const int fs = (f != config.fullscreen);
-	/* avoid flickering */
-	if (r != config.resizable && !r && mouse.cursor_type) {
-		mouse.cursor_type = 0;
-		mouse.cursor = cursor.cust;
-		SetCursor(cursor.cust);
-	}
 	client.x = x;
 	client.y = y;
 	client.width = w;

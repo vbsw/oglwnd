@@ -155,10 +155,9 @@ type Handler interface {
 	OnUpdate(window *Window) error
 	OnKeyDown(window *Window, key, repeat int) error
 	OnKeyUp(window *Window, key int) error
-	OnWindowMove(window *Window) error
-	OnWindowSize(window *Window) error
+	OnMove(window *Window) error
+	OnResize(window *Window) error
 	OnFirstWindowSize(window *Window) error
-	OnRestore(window *Window) error
 	OnFocusLoose(window *Window) error
 	OnFocusGain(window *Window) error
 	OnMouseMove(window *Window) error
@@ -201,11 +200,11 @@ func (dhn *DefaultHandler) OnKeyUp(window *Window, key int) error {
 	return nil
 }
 
-func (dhn *DefaultHandler) OnWindowMove(window *Window) error {
+func (dhn *DefaultHandler) OnMove(window *Window) error {
 	return nil
 }
 
-func (dhn *DefaultHandler) OnWindowSize(window *Window) error {
+func (dhn *DefaultHandler) OnResize(window *Window) error {
 	return nil
 }
 

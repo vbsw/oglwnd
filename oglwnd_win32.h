@@ -113,8 +113,8 @@ static int pressed[255];
 /* goOnUpdate                                               */
 /* goOnKeyDown                                              */
 /* goOnKeyUp                                                */
-/* goOnWindowMove                                           */
-/* goOnWindowSize                                           */
+/* goOnMove                                                 */
+/* goOnResize                                               */
 /* goOnFirstWindowSize                                      */
 /* goOnMenuEnter                                            */
 /* goOnMenuLeave                                            */
