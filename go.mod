@@ -1,3 +1,3 @@
-module github.com/vbsw/oglwin
+module github.com/vbsw/oglwnd
 
 go 1.13
