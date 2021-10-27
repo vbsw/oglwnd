@@ -154,84 +154,6 @@ static void process_lb_down(const UINT message, const WPARAM wParam, const LPARA
 	goOnButtonDown(1, double_click);
 }
 
-static LRESULT process_hittest(const LRESULT result) {
-	if (!state.resizing) {
-		switch (result) {
-		case HTCLIENT:
-			mouse.cursor_type = 0;
-			mouse.cursor = cursor.cust;
-			return HTCLIENT;
-		case HTTOPLEFT:
-			mouse.cursor_type = 1;
-			mouse.cursor = cursor.nwse;
-			return HTCLIENT;
-		case HTTOP:
-			mouse.cursor_type = 2;
-			mouse.cursor = cursor.ns;
-			return HTCLIENT;
-		case HTTOPRIGHT:
-			mouse.cursor_type = 3;
-			mouse.cursor = cursor.nesw;
-			return HTCLIENT;
-		case HTRIGHT:
-			mouse.cursor_type = 4;
-			mouse.cursor = cursor.we;
-			return HTCLIENT;
-		case HTBOTTOMRIGHT:
-			mouse.cursor_type = 5;
-			mouse.cursor = cursor.nwse;
-			return HTCLIENT;
-		case HTBOTTOM:
-			mouse.cursor_type = 6;
-			mouse.cursor = cursor.ns;
-			return HTCLIENT;
-		case HTBOTTOMLEFT:
-			mouse.cursor_type = 7;
-			mouse.cursor = cursor.nesw;
-			return HTCLIENT;
-		case HTLEFT:
-			mouse.cursor_type = 8;
-			mouse.cursor = cursor.we;
-			return HTCLIENT;
-		case HTBORDER:
-			mouse.cursor_type = 0;
-			mouse.cursor = cursor.cust;
-			return HTBORDER;
-		}
-	}
-	return result;
-}
-
-static void process_resize(const int x, const int y) {
-	switch(mouse.cursor_type) {
-	case 2:
-		break;
-	case 3:
-		move_window(client.x, client.y + (y - mouse.y), client.width + (x - mouse.x), client.height - (y - mouse.y));
-		mouse.x = x;
-		break;
-	case 4:
-		move_window(client.x, client.y, client.width + (x - mouse.x), client.height);
-		mouse.x = x;
-		mouse.y = y;
-		break;
-	case 5:
-		move_window(client.x, client.y, client.width + (x - mouse.x), client.height + (y - mouse.y));
-		mouse.x = x;
-		mouse.y = y;
-		break;
-	case 6:
-		move_window(client.x, client.y, client.width, client.height + (y - mouse.y));
-		mouse.x = x;
-		mouse.y = y;
-		break;
-	case 7:
-		break;
-	case 8:
-		break;
-	}
-}
-
 static void drag_begin() {
 	if (!state.dragging) {
 		state.dragging = 1;
@@ -554,8 +476,6 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 		case WM_MOUSEMOVE:
 			if (state.dragging_cust && !state.maximized) {
 				move_window(client.x + (int)(short)LOWORD(lParam) - mouse.x, client.y + (int)(short)HIWORD(lParam) - mouse.y, client.width, client.height);
-			} else if (state.resizing) {
-				process_resize((int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam));
 			} else {
 				mouse.x = ((int)(short)LOWORD(lParam));
 				mouse.y = ((int)(short)HIWORD(lParam));
@@ -573,7 +493,6 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 				state.dragging_cust = 0;
 				goOnDragCustEnd();
 			}
-			state.resizing = 0;
 			goOnButtonUp(1);
 			break;
 		case WM_LBUTTONDBLCLK:
