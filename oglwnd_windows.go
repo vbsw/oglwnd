@@ -8,7 +8,7 @@
 // Package oglwnd creates windows with OpenGL context.
 package oglwnd
 
-// #cgo CFLAGS: -D_OGLWND_WIN32
+// #cgo CFLAGS: -D_OGLWND_WIN32 -DUNICODE
 // #cgo LDFLAGS: -luser32 -lgdi32 -lOpenGL32
 // #include "oglwnd.h"
 import "C"
@@ -106,9 +106,9 @@ func (builder *DefaultBuilder) Error(errNum C.int, errStrExtra *C.char) error {
 		case 8:
 			errStr = "make dummy context current failed"
 		case 9:
-			errStr = "get wglChoosePixelFormatARB failed"
+			errStr = "load wglChoosePixelFormatARB failed"
 		case 10:
-			errStr = "get wglCreateContextAttribsARB failed"
+			errStr = "load wglCreateContextAttribsARB failed"
 		case 11:
 			errStr = "register class failed"
 		case 12:

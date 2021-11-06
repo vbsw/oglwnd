@@ -3,7 +3,12 @@
 
 #define DUMMY_CLASS_NAME TEXT("oglwnd_cls_dmy")
 
-static void init_dummy_class(window_t *const dummy, HINSTANCE const instance, int *const err_num, char **const err_str_extra) {
+static void new_dummy_impl(window_t **const dummy, HINSTANCE const instance, int *const err_num, char **const err_str_extra) {
+	dummy[0] = (window_t*)malloc(sizeof(window_t));
+	ZeroMemory(dummy[0], sizeof(window_t));
+}
+
+static void init_dummy_class_impl(window_t *const dummy, HINSTANCE const instance, int *const err_num, char **const err_str_extra) {
 	if (err_num[0] == 0) {
 		dummy->cls.cbSize = sizeof(WNDCLASSEX);
 		dummy->cls.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
@@ -22,7 +27,7 @@ static void init_dummy_class(window_t *const dummy, HINSTANCE const instance, in
 	}
 }
 
-static void init_dummy_window(window_t *const dummy, int *const err_num, char **const err_str_extra) {
+static void init_dummy_window_impl(window_t *const dummy, int *const err_num, char **const err_str_extra) {
 	if (err_num[0] == 0) {
 		dummy->hndl = CreateWindow(DUMMY_CLASS_NAME, TEXT("Dummy"), WS_OVERLAPPEDWINDOW, 0, 0, 1, 1, NULL, NULL, dummy->cls.hInstance, NULL);
 		if (!dummy->hndl) {
@@ -31,7 +36,7 @@ static void init_dummy_window(window_t *const dummy, int *const err_num, char **
 	}
 }
 
-static void init_dummy_context(window_t *const dummy, int *const err_num, char **const err_str_extra) {
+static void init_dummy_context_impl(window_t *const dummy, int *const err_num, char **const err_str_extra) {
 	if (err_num[0] == 0) {
 		dummy->dc = GetDC(window.hndl);
 		if (dummy->dc) {
@@ -64,12 +69,7 @@ static void init_dummy_context(window_t *const dummy, int *const err_num, char *
 	}
 }
 
-static void new_dummy(window_t **const dummy, HINSTANCE const instance, int *const err_num, char **const err_str_extra) {
-	dummy[0] = (window_t*)malloc(sizeof(window_t));
-	ZeroMemory(dummy[0], sizeof(window_t));
-}
-
-static void destroy_dummy(window_t *const dummy) {
+static void destroy_dummy_impl(window_t *const dummy) {
 	if (dummy) {
 		if (dummy->rc) {
 			wglMakeCurrent(dummy->dc, NULL);

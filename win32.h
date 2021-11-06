@@ -3,6 +3,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <wchar.h>
 #include <gl/GL.h>
 
 // from wgl.h
@@ -50,17 +51,15 @@ typedef struct {
 } window_t;
 
 typedef LRESULT(*cb_t) (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, void *data, BOOL *processed);
-typedef void(*new_window_f) ();
-typedef void(*init_class_f) ();
+typedef void(*new_window_f) (window_t **window, HINSTANCE instance, int *err_num, char **err_str_extra);
+typedef void(*init_class_f) (window_t *const dummy, HINSTANCE const instance, int *const err_num, char **const err_str_extra);
 typedef void(*init_window_f) ();
 typedef void(*init_context_f) ();
 
-static new_window_f   new_window   = NULL;
-static init_class_f   init_class   = NULL;
-static init_window_f  init_window  = NULL;
-static init_context_f init_context = NULL;
-
-
+void new_window_impl(window_t **window, HINSTANCE instance, int *err_num, char **err_str_extra);
+void init_class_impl(window_t *dummy, HINSTANCE instance, int *err_num, char **err_str_extra);
+void init_window_impl();
+void init_context_impl();
 
 
 

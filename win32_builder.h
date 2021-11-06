@@ -17,6 +17,7 @@ typedef struct {
 	init_dummy_context_f init_dummy_context;
 	destroy_dummy_f      destroy_dummy;
 	init_wgl_f           init_wgl;
+	new_window_f         new_window;
 	init_class_f         init_class;
 	init_window_f        init_window;
 	init_context_f       init_context;
@@ -54,15 +55,16 @@ static void init_wgl(window_t *const dummy, void *const cpfarb, void *const ccaa
 void oglwnd_new_builder(void **const builder) {
 	builder_t *const bldr = (builder_t*)malloc(sizeof(builder_t));
 	bldr->init_module = init_module;
-	bldr->new_dummy = new_dummy;
-	bldr->init_dummy_class = init_dummy_class;
-	bldr->init_dummy_window = init_dummy_window;
-	bldr->init_dummy_context = init_dummy_context;
-	bldr->destroy_dummy = destroy_dummy;
+	bldr->new_dummy = new_dummy_impl;
+	bldr->init_dummy_class = init_dummy_class_impl;
+	bldr->init_dummy_window = init_dummy_window_impl;
+	bldr->init_dummy_context = init_dummy_context_impl;
+	bldr->destroy_dummy = destroy_dummy_impl;
 	bldr->init_wgl = init_wgl;
-	bldr->init_class = NULL;
-	bldr->init_window = NULL;
-	bldr->init_context = NULL;
+	bldr->new_window = new_window_impl;
+	bldr->init_class = init_class_impl;
+	bldr->init_window = init_window_impl;
+	bldr->init_context = init_context_impl;
 	builder[0] = bldr;
 }
 
