@@ -17,16 +17,25 @@ import (
 	"unsafe"
 )
 
+type Window interface {
+	Destroy()
+}
+
 // Builder is an abstraction of initialization procedures for this package.
 type Builder interface {
-	InitCBuilder() unsafe.Pointer
-	DestroyCBuilder(*C.char)
+	NewCBuilder() unsafe.Pointer
+	DestroyCBuilder()
+	CBuilder() unsafe.Pointer
 	Error(C.int, *C.char) error
 }
 
 // DefaultBuilder is the default implementation of Builder interface.
 type DefaultBuilder struct {
 	cbuilder unsafe.Pointer
+}
+
+type tWindow struct {
+	data unsafe.Pointer
 }
 
 var (
@@ -37,7 +46,7 @@ var (
 // SetBuilder sets a custom builder. If builder is nil, default builder is used.
 func SetBuilder(builder Builder) {
 	if bldr != nil {
-		bldr.DestroyCBuilder(nil)
+		bldr.DestroyCBuilder()
 	}
 	bldr = builder
 }
@@ -50,13 +59,14 @@ func Init() error {
 		if bldr == nil {
 			bldr = new(DefaultBuilder)
 		}
-		cbuilder := bldr.InitCBuilder()
+		cbuilder := bldr.NewCBuilder()
 		C.oglwnd_init(cbuilder, &errNum, &errStrExtra)
 		err := bldr.Error(errNum, errStrExtra)
 		if err == nil {
 			initialized = true
 		} else {
-			bldr.DestroyCBuilder(errStrExtra)
+			bldr.DestroyCBuilder()
+			C.oglwnd_free_mem(unsafe.Pointer(errStrExtra))
 		}
 		return err
 	}
@@ -67,21 +77,49 @@ func Init() error {
 func Destroy() {
 	if initialized {
 		C.oglwnd_destroy()
-		bldr.DestroyCBuilder(nil)
+		bldr.DestroyCBuilder()
 		initialized = false
 	}
 }
 
-// InitCBuilder initializes an instance of C.builder_t. Returns pointer to it.
-func (builder *DefaultBuilder) InitCBuilder() unsafe.Pointer {
+// New returns a new Window object.
+func New() (Window, error) {
+	if initialized {
+		var errNum C.int
+		var errStrExtra *C.char
+		window := new(tWindow)
+		C.oglwnd_new_window(bldr.CBuilder(), &window.data, &errNum, &errStrExtra)
+		err := bldr.Error(errNum, errStrExtra)
+		if err != nil {
+			window.Destroy()
+			C.oglwnd_free_mem(unsafe.Pointer(errStrExtra))
+			window = nil
+		}
+		return window, err
+	}
+	panic("oglwnd not initialized")
+}
+
+func (window *tWindow) Destroy() {
+	C.oglwnd_destroy_window(window.data)
+	window.data = nil
+}
+
+// NewCBuilder initializes an instance of C.builder_t. Returns pointer to it.
+func (builder *DefaultBuilder) NewCBuilder() unsafe.Pointer {
 	C.oglwnd_new_builder(&builder.cbuilder)
 	return builder.cbuilder
 }
 
-// DestroyCBuilder releases all memory associated with cbuilder and string.
-func (builder *DefaultBuilder) DestroyCBuilder(cstr *C.char) {
-	C.oglwnd_destroy_builder(builder.cbuilder, cstr)
+// DestroyCBuilder releases all memory associated with cbuilder.
+func (builder *DefaultBuilder) DestroyCBuilder() {
+	C.oglwnd_destroy_builder(builder.cbuilder)
 	builder.cbuilder = nil
+}
+
+// CBuilder returns a pointer to C.builder_t
+func (builder *DefaultBuilder) CBuilder() unsafe.Pointer {
+	return builder.cbuilder
 }
 
 // Error creates and returns an error from errNum. Parameter errStrExtra is appended, if it isn't nil.

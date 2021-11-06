@@ -18,7 +18,7 @@ import (
 
 // Builder is an abstraction of initialization procedures for this package.
 type Builder interface {
-	InitCBuilder() unsafe.Pointer
+	NewCBuilder() unsafe.Pointer
 	DestroyCBuilder(*C.char)
 	Error(C.int, *C.char) error
 }
@@ -49,7 +49,7 @@ func Init() error {
 		if bldr == nil {
 			bldr = new(DefaultBuilder)
 		}
-		cbuilder := bldr.InitCBuilder()
+		cbuilder := bldr.NewCBuilder()
 		C.oglwnd_init(cbuilder, &errNum, &errStrExtra)
 		err := bldr.Error(errNum, errStrExtra)
 		if err == nil {
@@ -71,8 +71,8 @@ func Destroy() {
 	}
 }
 
-// InitCBuilder initializes an instance of C.builder_t. Returns pointer to it.
-func (builder *DefaultBuilder) InitCBuilder() unsafe.Pointer {
+// NewCBuilder initializes an instance of C.builder_t. Returns pointer to it.
+func (builder *DefaultBuilder) NewCBuilder() unsafe.Pointer {
 	C.oglwnd_new_builder(&builder.cbuilder)
 	return builder.cbuilder
 }

@@ -29,8 +29,18 @@ static LPTSTR new_class_name() {
 	return NULL;
 }
 
-static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	return DefWindowProc(hWnd, message, wParam, lParam);
+static LRESULT CALLBACK windowProc(HWND const hWnd, const UINT message, const WPARAM wParam, const LPARAM lParam) {
+	LRESULT result = 0;
+	if (message == WM_NCCREATE) {
+		window_data_t *const data = (window_data_t*)(((CREATESTRUCT*)lParam)->lpCreateParams);
+		if (data)
+			SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)data);
+		result = DefWindowProc(hWnd, message, wParam, lParam);
+	} else {
+		window_data_t *const data = (window_data_t*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+		result = DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	return result;
 }
 
 void oglwnd_init(void *const builder, int *const err_num, char **const err_str_extra) {
@@ -47,7 +57,41 @@ void oglwnd_init(void *const builder, int *const err_num, char **const err_str_e
 	}
 }
 
+void oglwnd_new_window(void *const builder, void **const data, int *const err_num, char **const err_str_extra) {
+	builder_t *const bldr = (builder_t*)builder;
+	window_data_t **const window_data = (window_data_t**)data;
+	bldr->new_window(window_data, instance, err_num, err_str_extra);
+	bldr->init_class(window_data[0], instance, err_num, err_str_extra);
+	bldr->init_window(window_data[0], err_num, err_str_extra);
+	bldr->init_context(window_data[0], err_num, err_str_extra);
+}
+
+void oglwnd_destroy_window(void *const data) {
+	if (data) {
+		window_data_t *const window_data = (window_data_t*)data;
+		if (window_data->window.rc) {
+			wglMakeCurrent(window_data->window.dc, NULL);
+			wglDeleteContext(window_data->window.rc);
+		}
+		if (window_data->window.dc) {
+			ReleaseDC(window_data->window.hndl, window_data->window.dc);
+		}
+		if (window_data->window.hndl) {
+			DestroyWindow(window_data->window.hndl);
+		}
+		UnregisterClass(window_data->window.cls.lpszClassName, window_data->window.cls.hInstance);
+		if (window_data->window.cls.lpszClassName)
+			free((void*)window_data->window.cls.lpszClassName);
+		free(window_data);
+	}
+}
+
 void oglwnd_destroy() {
+}
+
+void oglwnd_free_mem(void *const mem) {
+	if (mem)
+		free(mem);
 }
 
 void new_window_impl(window_data_t **const data, HINSTANCE const instance, int *const err_num, char **const err_str_extra) {
@@ -81,7 +125,7 @@ void init_class_impl(window_data_t *const data, HINSTANCE const instance, int *c
 void init_window_impl(window_data_t *const data, int *const err_num, char **const err_str_extra) {
 	if (err_num[0] == 0) {
 		const DWORD style = WS_OVERLAPPEDWINDOW;
-		data->window.hndl = CreateWindow(data->window.cls.lpszClassName, TEXT("OpenGL"), style, 10, 10, 640, 480, NULL, NULL, data->window.cls.hInstance, NULL);
+		data->window.hndl = CreateWindow(data->window.cls.lpszClassName, TEXT("OpenGL"), style, 10, 10, 640, 480, NULL, NULL, data->window.cls.hInstance, (void*)data);
 		if (!data->window.hndl)
 			err_num[0] = 12;
 	}

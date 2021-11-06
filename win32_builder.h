@@ -68,10 +68,8 @@ void oglwnd_new_builder(void **const builder) {
 	builder[0] = bldr;
 }
 
-void oglwnd_destroy_builder(void *const builder, char *const str) {
+void oglwnd_destroy_builder(void *const builder) {
 	free(builder);
-	if (str)
-		free(str);
 }
 
 #endif /* WIN32_BUILDER_H */
