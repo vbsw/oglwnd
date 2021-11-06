@@ -19,23 +19,27 @@ import (
 
 // Builder is an abstraction of initialization procedures for this package.
 type Builder interface {
-	NewCBuilder() unsafe.Pointer
-	DestroyCBuilder(unsafe.Pointer, *C.char)
+	InitCBuilder() unsafe.Pointer
+	DestroyCBuilder(*C.char)
 	Error(C.int, *C.char) error
 }
 
 // DefaultBuilder is the default implementation of Builder interface.
 type DefaultBuilder struct {
+	cbuilder unsafe.Pointer
 }
 
 var (
-	initialized   bool
-	customBuilder Builder
+	initialized bool
+	bldr        Builder
 )
 
 // SetBuilder sets a custom builder. If builder is nil, default builder is used.
 func SetBuilder(builder Builder) {
-	customBuilder = builder
+	if bldr != nil {
+		bldr.DestroyCBuilder(nil)
+	}
+	bldr = builder
 }
 
 // Init initializes functions and data needed for this package.
@@ -43,15 +47,17 @@ func Init() error {
 	if !initialized {
 		var errNum C.int
 		var errStrExtra *C.char
-		builder := customBuilder
-		if builder == nil {
-			builder = new(DefaultBuilder)
+		if bldr == nil {
+			bldr = new(DefaultBuilder)
 		}
-		cbuilder := builder.NewCBuilder()
+		cbuilder := bldr.InitCBuilder()
 		C.oglwnd_init(cbuilder, &errNum, &errStrExtra)
-		err := builder.Error(errNum, errStrExtra)
-		builder.DestroyCBuilder(cbuilder, errStrExtra)
-		initialized = bool(err == nil)
+		err := bldr.Error(errNum, errStrExtra)
+		if err == nil {
+			initialized = true
+		} else {
+			bldr.DestroyCBuilder(errStrExtra)
+		}
 		return err
 	}
 	return nil
@@ -61,20 +67,21 @@ func Init() error {
 func Destroy() {
 	if initialized {
 		C.oglwnd_destroy()
+		bldr.DestroyCBuilder(nil)
 		initialized = false
 	}
 }
 
-// NewCBuilder creates and returns a new instance of DefaultBuilder.
-func (builder *DefaultBuilder) NewCBuilder() unsafe.Pointer {
-	var cbuilder unsafe.Pointer
-	C.oglwnd_new_builder(&cbuilder)
-	return cbuilder
+// InitCBuilder initializes an instance of C.builder_t. Returns pointer to it.
+func (builder *DefaultBuilder) InitCBuilder() unsafe.Pointer {
+	C.oglwnd_new_builder(&builder.cbuilder)
+	return builder.cbuilder
 }
 
-// DestroyCBuilder releases all memory allocated in C by DefaultBuilder.
-func (builder *DefaultBuilder) DestroyCBuilder(cbuilder unsafe.Pointer, cstr *C.char) {
-	C.oglwnd_destroy_builder(cbuilder, cstr)
+// DestroyCBuilder releases all memory associated with cbuilder and string.
+func (builder *DefaultBuilder) DestroyCBuilder(cstr *C.char) {
+	C.oglwnd_destroy_builder(builder.cbuilder, cstr)
+	builder.cbuilder = nil
 }
 
 // Error creates and returns an error from errNum. Parameter errStrExtra is appended, if it isn't nil.

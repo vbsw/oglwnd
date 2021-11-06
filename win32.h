@@ -28,32 +28,39 @@
 #define WGL_CONTEXT_PROFILE_MASK_ARB      0x9126
 #define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
 
-
 #define WGL_SWAP_METHOD_EXT               0x2007
 #define WGL_SWAP_EXCHANGE_EXT             0x2028
 #define WGL_SWAP_COPY_EXT                 0x2029
 #define WGL_SWAP_UNDEFINED_EXT            0x202A
 
-
-#define CLASS_NAME TEXT("vb_cls")
-
 /* from wglext.h */
 typedef BOOL(WINAPI * PFNWGLCHOOSEPIXELFORMATARBPROC) (HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 typedef HGLRC(WINAPI * PFNWGLCREATECONTEXTATTRIBSARBPROC) (HDC hDC, HGLRC hShareContext, const int *attribList);
 
-typedef LRESULT(*cb_t) (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, void *data, BOOL *processed);
-
-static HINSTANCE instance = NULL;
+static HINSTANCE                         instance                   = NULL;
 static PFNWGLCHOOSEPIXELFORMATARBPROC    wglChoosePixelFormatARB    = NULL;
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
-
 
 typedef struct {
 	WNDCLASSEX cls;
 	HWND hndl;
 	HDC dc;
 	HGLRC rc;
+	void *custom;
 } window_t;
+
+typedef LRESULT(*cb_t) (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, void *data, BOOL *processed);
+typedef void(*new_window_f) ();
+typedef void(*init_class_f) ();
+typedef void(*init_window_f) ();
+typedef void(*init_context_f) ();
+
+static new_window_f   new_window   = NULL;
+static init_class_f   init_class   = NULL;
+static init_window_f  init_window  = NULL;
+static init_context_f init_context = NULL;
+
+
 
 
 

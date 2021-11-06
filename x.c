@@ -7,12 +7,16 @@
 
 #if defined(_OGLWND_X)
 
+#include <stdlib.h>
+
 void oglwnd_new_builder(void **const builder) {
 	// TODO
 }
 
 void oglwnd_destroy_builder(void *const builder, char *const str) {
 	// TODO
+	if (str)
+		free(str);
 }
 
 void oglwnd_init(void *const builder, int *const err_num, char **const err_str_extra) {

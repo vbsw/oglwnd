@@ -3,14 +3,23 @@
 
 typedef void(*init_module_f) (HINSTANCE *instance, int *err_num, char **err_str_extra);
 typedef void(*new_dummy_f) (window_t **dummy, HINSTANCE instance, int *err_num, char **err_str_extra);
+typedef void(*init_dummy_class_f) (window_t *dummy, HINSTANCE instance, int *err_num, char **err_str_extra);
+typedef void(*init_dummy_window_f) (window_t *dummy, int *err_num, char **err_str_extra);
+typedef void(*init_dummy_context_f) (window_t *dummy, int *err_num, char **err_str_extra);
 typedef void(*destroy_dummy_f) (window_t *dummy);
 typedef void(*init_wgl_f) (window_t *dummy, void *cpfarb, void *ccaarb, int *err_num, char **err_str_extra);
 
 typedef struct {
-	init_module_f init_module;
-	new_dummy_f new_dummy;
-	destroy_dummy_f destroy_dummy;
-	init_wgl_f init_wgl;
+	init_module_f        init_module;
+	new_dummy_f          new_dummy;
+	init_dummy_class_f   init_dummy_class;
+	init_dummy_window_f  init_dummy_window;
+	init_dummy_context_f init_dummy_context;
+	destroy_dummy_f      destroy_dummy;
+	init_wgl_f           init_wgl;
+	init_class_f         init_class;
+	init_window_f        init_window;
+	init_context_f       init_context;
 } builder_t;
 
 static void init_module(HINSTANCE *const instance, int *const err_num, char **const err_str_extra) {
@@ -46,8 +55,14 @@ void oglwnd_new_builder(void **const builder) {
 	builder_t *const bldr = (builder_t*)malloc(sizeof(builder_t));
 	bldr->init_module = init_module;
 	bldr->new_dummy = new_dummy;
+	bldr->init_dummy_class = init_dummy_class;
+	bldr->init_dummy_window = init_dummy_window;
+	bldr->init_dummy_context = init_dummy_context;
 	bldr->destroy_dummy = destroy_dummy;
 	bldr->init_wgl = init_wgl;
+	bldr->init_class = NULL;
+	bldr->init_window = NULL;
+	bldr->init_context = NULL;
 	builder[0] = bldr;
 }
 
