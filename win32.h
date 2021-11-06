@@ -47,21 +47,35 @@ typedef struct {
 	HWND hndl;
 	HDC dc;
 	HGLRC rc;
-	void *custom;
 } window_t;
 
+typedef struct {
+	window_t window;
+	void *custom;
+} dummy_data_t;
+
+typedef struct {
+	window_t window;
+	void *custom;
+} window_data_t;
+
 typedef LRESULT(*cb_t) (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, void *data, BOOL *processed);
-typedef void(*new_window_f) (window_t **window, HINSTANCE instance, int *err_num, char **err_str_extra);
-typedef void(*init_class_f) (window_t *const dummy, HINSTANCE const instance, int *const err_num, char **const err_str_extra);
-typedef void(*init_window_f) ();
-typedef void(*init_context_f) ();
+typedef void(*new_window_f) (window_data_t **data, HINSTANCE instance, int *err_num, char **err_str_extra);
+typedef void(*init_class_f) (window_data_t *data, HINSTANCE instance, int *err_num, char **err_str_extra);
+typedef void(*init_window_f) (window_data_t *data, int *err_num, char **err_str_extra);
+typedef void(*init_context_f) (window_data_t *data, int *err_num, char **err_str_extra);
 
-void new_window_impl(window_t **window, HINSTANCE instance, int *err_num, char **err_str_extra);
-void init_class_impl(window_t *dummy, HINSTANCE instance, int *err_num, char **err_str_extra);
-void init_window_impl();
-void init_context_impl();
+void new_window_impl(window_data_t **data, HINSTANCE instance, int *err_num, char **err_str_extra);
+void init_class_impl(window_data_t *data, HINSTANCE instance, int *err_num, char **err_str_extra);
+void init_window_impl(window_data_t *data, int *err_num, char **err_str_extra);
+void init_context_impl(window_data_t *data, int *err_num, char **err_str_extra);
 
-
+static int is_class_registered(HINSTANCE const instance, LPCTSTR const name) {
+	WNDCLASSEXW wcx;
+	if (GetClassInfoEx(instance, name, &wcx))
+		return 1;
+	return 0;
+}
 
 
 

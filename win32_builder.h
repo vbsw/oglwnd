@@ -2,12 +2,12 @@
 #define WIN32_BUILDER_H
 
 typedef void(*init_module_f) (HINSTANCE *instance, int *err_num, char **err_str_extra);
-typedef void(*new_dummy_f) (window_t **dummy, HINSTANCE instance, int *err_num, char **err_str_extra);
-typedef void(*init_dummy_class_f) (window_t *dummy, HINSTANCE instance, int *err_num, char **err_str_extra);
-typedef void(*init_dummy_window_f) (window_t *dummy, int *err_num, char **err_str_extra);
-typedef void(*init_dummy_context_f) (window_t *dummy, int *err_num, char **err_str_extra);
-typedef void(*destroy_dummy_f) (window_t *dummy);
-typedef void(*init_wgl_f) (window_t *dummy, void *cpfarb, void *ccaarb, int *err_num, char **err_str_extra);
+typedef void(*new_dummy_f) (dummy_data_t **data, HINSTANCE instance, int *err_num, char **err_str_extra);
+typedef void(*init_dummy_class_f) (dummy_data_t *data, HINSTANCE instance, int *err_num, char **err_str_extra);
+typedef void(*init_dummy_window_f) (dummy_data_t *data, int *err_num, char **err_str_extra);
+typedef void(*init_dummy_context_f) (dummy_data_t *data, int *err_num, char **err_str_extra);
+typedef void(*destroy_dummy_f) (dummy_data_t *data);
+typedef void(*init_wgl_f) (dummy_data_t *data, void *cpfarb, void *ccaarb, int *err_num, char **err_str_extra);
 
 typedef struct {
 	init_module_f        init_module;
@@ -32,9 +32,9 @@ static void init_module(HINSTANCE *const instance, int *const err_num, char **co
 	}
 }
 
-static void init_wgl(window_t *const dummy, void *const cpfarb, void *const ccaarb, int *const err_num, char **const err_str_extra) {
+static void init_wgl(dummy_data_t *const data, void *const cpfarb, void *const ccaarb, int *const err_num, char **const err_str_extra) {
 	if (err_num[0] == 0) {
-		if (wglMakeCurrent(dummy->dc, dummy->rc)) {
+		if (wglMakeCurrent(data->window.dc, data->window.rc)) {
 			PFNWGLCHOOSEPIXELFORMATARBPROC *const wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC*)cpfarb;
 			wglChoosePixelFormatARB[0] = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
 			if (wglChoosePixelFormatARB[0]) {

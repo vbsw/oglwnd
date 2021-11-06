@@ -5,7 +5,7 @@
  *        http://www.boost.org/LICENSE_1_0.txt)
  */
 
-#if defined(_OGLWND_X)
+#if defined(OGLWND_X)
 
 #include <stdlib.h>
 

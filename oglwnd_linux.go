@@ -8,7 +8,7 @@
 // Package oglwnd creates windows with OpenGL context.
 package oglwnd
 
-// #cgo CFLAGS: -D_OGLWND_X
+// #cgo CFLAGS: -DOGLWND_X
 // #include "oglwnd.h"
 import "C"
 import (
