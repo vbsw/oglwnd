@@ -57,10 +57,10 @@ void oglwnd_init(void *const builder, int *const err_num, char **const err_str_e
 	}
 }
 
-void oglwnd_new_window(void *const builder, void **const data, int *const err_num, char **const err_str_extra) {
+void oglwnd_new_window(void *const builder, void **const data, void *const go_data, int *const err_num, char **const err_str_extra) {
 	builder_t *const bldr = (builder_t*)builder;
 	window_data_t **const window_data = (window_data_t**)data;
-	bldr->new_window(window_data, instance, err_num, err_str_extra);
+	bldr->new_window(window_data, instance, go_data, err_num, err_str_extra);
 	bldr->init_class(window_data[0], instance, err_num, err_str_extra);
 	bldr->init_window(window_data[0], err_num, err_str_extra);
 	bldr->init_context(window_data[0], err_num, err_str_extra);
@@ -94,9 +94,44 @@ void oglwnd_free_mem(void *const mem) {
 		free(mem);
 }
 
-void new_window_impl(window_data_t **const data, HINSTANCE const instance, int *const err_num, char **const err_str_extra) {
+void oglwnd_process_events() {
+	MSG msg;
+	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+}
+
+void oglwnd_process_events_waiting() {
+	MSG msg;
+	while (GetMessage(&msg, NULL, 0, 0)) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+}
+
+void oglwnd_process_window_events(void *const data) {
+	MSG msg;
+	window_data_t *const window_data = (window_data_t*)data;
+	while (PeekMessage(&msg, window_data->window.hndl, 0, 0, PM_REMOVE)) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+}
+
+void oglwnd_process_window_events_waiting(void *const data) {
+	MSG msg;
+	window_data_t *const window_data = (window_data_t*)data;
+	while (GetMessage(&msg, window_data->window.hndl, 0, 0)) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+}
+
+void new_window_impl(window_data_t **const data, HINSTANCE const instance, void *go_data, int *const err_num, char **const err_str_extra) {
 	data[0] = (window_data_t*)malloc(sizeof(window_data_t));
 	ZeroMemory(data[0], sizeof(window_data_t));
+	data[0]->go_data = go_data;
 }
 
 void init_class_impl(window_data_t *const data, HINSTANCE const instance, int *const err_num, char **const err_str_extra) {
@@ -165,11 +200,7 @@ void init_context_impl(window_data_t *const data, int *const err_num, char **con
 				DescribePixelFormat(data->window.dc, pixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
 				if (SetPixelFormat(data->window.dc, pixelFormat, &pfd)) {
 					data->window.rc = wglCreateContextAttribsARB(data->window.dc, 0, contextAttributes);
-					if (data->window.rc) {
-						if (!wglMakeCurrent(data->window.dc, data->window.rc)) {
-							err_num[0] = 17;
-						}
-					} else {
+					if (!data->window.rc) {
 						err_num[0] = 16;
 					}
 				} else {

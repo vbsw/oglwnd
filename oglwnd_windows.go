@@ -17,8 +17,21 @@ import (
 	"unsafe"
 )
 
+const notInitialized = "oglwnd not initialized"
+
+var (
+	initialized bool
+	bldr        Builder
+)
+
 type Window interface {
+	ProcessEvents()
+	ProcessEventsWaiting()
 	Destroy()
+}
+
+type tWindow struct {
+	data unsafe.Pointer
 }
 
 // Builder is an abstraction of initialization procedures for this package.
@@ -33,15 +46,6 @@ type Builder interface {
 type DefaultBuilder struct {
 	cbuilder unsafe.Pointer
 }
-
-type tWindow struct {
-	data unsafe.Pointer
-}
-
-var (
-	initialized bool
-	bldr        Builder
-)
 
 // SetBuilder sets a custom builder. If builder is nil, default builder is used.
 func SetBuilder(builder Builder) {
@@ -88,7 +92,7 @@ func New() (Window, error) {
 		var errNum C.int
 		var errStrExtra *C.char
 		window := new(tWindow)
-		C.oglwnd_new_window(bldr.CBuilder(), &window.data, &errNum, &errStrExtra)
+		C.oglwnd_new_window(bldr.CBuilder(), &window.data, unsafe.Pointer(window), &errNum, &errStrExtra)
 		err := bldr.Error(errNum, errStrExtra)
 		if err != nil {
 			window.Destroy()
@@ -97,12 +101,36 @@ func New() (Window, error) {
 		}
 		return window, err
 	}
-	panic("oglwnd not initialized")
+	panic(notInitialized)
+}
+
+func ProcessEvents() {
+	if initialized {
+		C.oglwnd_process_events();
+	} else {
+		panic(notInitialized)
+	}
+}
+
+func ProcessEventsWaiting() {
+	if initialized {
+		C.oglwnd_process_events_waiting();
+	} else {
+		panic(notInitialized)
+	}
 }
 
 func (window *tWindow) Destroy() {
 	C.oglwnd_destroy_window(window.data)
 	window.data = nil
+}
+
+func (window *tWindow) ProcessEvents() {
+	C.oglwnd_process_window_events(window.data)
+}
+
+func (window *tWindow) ProcessEventsWaiting() {
+	C.oglwnd_process_window_events_waiting(window.data)
 }
 
 // NewCBuilder initializes an instance of C.builder_t. Returns pointer to it.

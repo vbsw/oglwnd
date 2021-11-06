@@ -56,16 +56,17 @@ typedef struct {
 
 typedef struct {
 	window_t window;
+	void *go_data;
 	void *custom;
 } window_data_t;
 
 typedef LRESULT(*cb_t) (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, void *data, BOOL *processed);
-typedef void(*new_window_f) (window_data_t **data, HINSTANCE instance, int *err_num, char **err_str_extra);
+typedef void(*new_window_f) (window_data_t **data, HINSTANCE instance, void *go_data, int *err_num, char **err_str_extra);
 typedef void(*init_class_f) (window_data_t *data, HINSTANCE instance, int *err_num, char **err_str_extra);
 typedef void(*init_window_f) (window_data_t *data, int *err_num, char **err_str_extra);
 typedef void(*init_context_f) (window_data_t *data, int *err_num, char **err_str_extra);
 
-void new_window_impl(window_data_t **data, HINSTANCE instance, int *err_num, char **err_str_extra);
+void new_window_impl(window_data_t **data, HINSTANCE instance, void *go_data, int *err_num, char **err_str_extra);
 void init_class_impl(window_data_t *data, HINSTANCE instance, int *err_num, char **err_str_extra);
 void init_window_impl(window_data_t *data, int *err_num, char **err_str_extra);
 void init_context_impl(window_data_t *data, int *err_num, char **err_str_extra);
