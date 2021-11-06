@@ -17,6 +17,7 @@ void oglwnd_init(void *const builder, int *const err_num, char **const err_str_e
 		builder_t *const bldr = (builder_t*)builder;
 		bldr->init_module(&instance, err_num, err_str_extra);
 		bldr->new_dummy(&dummy, instance, err_num, err_str_extra);
+		bldr->init_wgl(dummy, &wglChoosePixelFormatARB, &wglCreateContextAttribsARB, err_num, err_str_extra);
 		bldr->destroy_dummy(dummy);
 	}
 }
