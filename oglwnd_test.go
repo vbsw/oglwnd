@@ -11,11 +11,10 @@ import (
 	"testing"
 )
 
-func TestInitOpenGL(t *testing.T) {
-	hn = new(DefaultHandler)
-	initOGLWindow()
+func TestInit(t *testing.T) {
+	err := Init()
 	if err == nil {
-		destroyWindow()
+		Destroy()
 	} else {
 		t.Error(err.Error())
 	}

@@ -35,7 +35,6 @@
 #define WGL_SWAP_UNDEFINED_EXT            0x202A
 
 
-#define DUMMY_CLASS_NAME TEXT("vb_cls_dmy")
 #define CLASS_NAME TEXT("vb_cls")
 
 /* from wglext.h */
@@ -48,9 +47,6 @@ static HINSTANCE instance = NULL;
 static PFNWGLCHOOSEPIXELFORMATARBPROC    wglChoosePixelFormatARB    = NULL;
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
 
-typedef struct {
-	int x, y;
-} t2i_t;
 
 typedef struct {
 	WNDCLASSEX cls;
@@ -58,6 +54,14 @@ typedef struct {
 	HDC dc;
 	HGLRC rc;
 } window_t;
+
+
+
+
+
+typedef struct {
+	int x, y;
+} t2i_t;
 
 static BOOL     running = FALSE;
 static window_t dummy   = { {sizeof(WNDCLASSEX), 0, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL}, NULL, NULL, NULL };

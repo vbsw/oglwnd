@@ -1,0 +1,37 @@
+#ifndef WIN32_BUILDER_H
+#define WIN32_BUILDER_H
+
+typedef void(*init_module_f) (HINSTANCE *instance, int *err_num, char **err_str_extra);
+typedef void(*new_dummy_f) (window_t **dummy, HINSTANCE instance, int *err_num, char **err_str_extra);
+typedef void(*destroy_dummy_f) (window_t *dummy);
+
+typedef struct {
+	init_module_f init_module;
+	new_dummy_f new_dummy;
+	destroy_dummy_f destroy_dummy;
+} builder_t;
+
+static void init_module(HINSTANCE *const instance, int *const err_num, char **const err_str_extra) {
+	if (err_num[0] == 0) {
+		instance[0] = GetModuleHandle(NULL);
+		if (!instance[0]) {
+			err_num[0] = 1;
+		}
+	}
+}
+
+void oglwnd_new_builder(void **const builder) {
+	builder_t *const bldr = (builder_t*)malloc(sizeof(builder_t));
+	bldr->init_module = init_module;
+	bldr->new_dummy = new_dummy;
+	bldr->destroy_dummy = destroy_dummy;
+	builder[0] = bldr;
+}
+
+void oglwnd_destroy_builder(void *const builder, char *const str) {
+	free(builder);
+	if (str)
+		free(str);
+}
+
+#endif /* WIN32_BUILDER_H */
