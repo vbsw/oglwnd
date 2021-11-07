@@ -116,6 +116,7 @@ const (
 	KeyRAlt        = 230
 )
 
+// Window is an interface to control the window.
 type Window interface {
 	ProcessEvents()
 	ProcessEventsBlocking()
@@ -124,6 +125,7 @@ type Window interface {
 	Props() *Properties
 }
 
+// Handler is a callback for window events.
 type Handler interface {
 	OnCloseRequest(*Properties)
 }

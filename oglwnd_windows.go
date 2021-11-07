@@ -27,12 +27,14 @@ var (
 	bldr        Builder
 )
 
+// Properties of the window.
 type Properties struct {
 	Quit bool
 	Visible bool
 	window *tWindow
 }
 
+// DefaultHandler is the default implementation of Hanlder interface.
 type DefaultHandler struct {
 }
 
@@ -42,7 +44,7 @@ type tWindow struct {
 	visible bool
 }
 
-// Builder is an abstraction of initialization procedures for this package.
+// Builder is an abstraction of initialization for this package.
 type Builder interface {
 	NewCBuilder() unsafe.Pointer
 	DestroyCBuilder()
@@ -117,6 +119,8 @@ func New(handler Handler) (Window, error) {
 	panic(notInitialized)
 }
 
+// ProcessEvents retrieves messages from thread's message queue for all windows and calls window's handler to process it.
+// If no messages available this function returns.
 func ProcessEvents() {
 	if initialized {
 		C.oglwnd_process_events();
@@ -125,6 +129,8 @@ func ProcessEvents() {
 	}
 }
 
+// ProcessEventsBlocking retrieves messages from thread's message queue for all windows and calls window's handler to process it.
+// This function blocks until further messages are available and returns only if all windows are destroyed.
 func ProcessEventsBlocking() {
 	if initialized {
 		C.oglwnd_process_events_blocking();
@@ -133,32 +139,41 @@ func ProcessEventsBlocking() {
 	}
 }
 
+// Apply applies changes to window.
 func (props *Properties) Apply() {
 	props.window.applyProps(props)
 }
 
+// OnCloseRequest is called when a request to close the window has been made.
 func (handler *DefaultHandler) OnCloseRequest(props *Properties) {
 	props.Quit = true
 	props.Apply()
 }
 
+// ProcessEvents retrieves messages from thread's message queue for this window and calls its handler to process it.
+// If no messages available this function returns.
 func (window *tWindow) ProcessEvents() {
 	C.oglwnd_process_window_events(window.data)
 }
 
+// ProcessEventsBlocking retrieves messages from thread's message queue for this window and calls its handler to process it.
+// This function blocks until further messages are available and returns only if this window is destroyed.
 func (window *tWindow) ProcessEventsBlocking() {
 	C.oglwnd_process_window_events_blocking(window.data)
 }
 
+// Show makes window visible.
 func (window *tWindow) Show() {
 	window.visible = true
 	C.oglwnd_show(window.data)
 }
 
+// Valid returns true, if window is valid, and false otherwise (e.g. after window has been destroyed).
 func (window *tWindow) Valid() bool {
 	return window.data != nil
 }
 
+// Props returns properties of the window.
 func (window *tWindow) Props() *Properties {
 	props := new(Properties)
 	props.window = window
