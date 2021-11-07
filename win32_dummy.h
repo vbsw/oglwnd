@@ -38,7 +38,7 @@ static void init_dummy_window_impl(dummy_data_t *const data, int *const err_num,
 
 static void init_dummy_context_impl(dummy_data_t *const data, int *const err_num, char **const err_str_extra) {
 	if (err_num[0] == 0) {
-		data->window.dc = GetDC(window.hndl);
+		data->window.dc = GetDC(data->window.hndl);
 		if (data->window.dc) {
 			int pixelFormat;
 			PIXELFORMATDESCRIPTOR pixelFormatDesc;

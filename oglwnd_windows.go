@@ -5,33 +5,41 @@
  *        http://www.boost.org/LICENSE_1_0.txt)
  */
 
-// Package oglwnd creates windows with OpenGL context.
 package oglwnd
 
-// #cgo CFLAGS: -DOGLWND_WIN32 -DUNICODE
+// #cgo CFLAGS: -DOGLWND_WIN32
 // #cgo LDFLAGS: -luser32 -lgdi32 -lOpenGL32
 // #include "oglwnd.h"
+// typedef unsigned long vblong;
 import "C"
 import (
 	"errors"
 	"unsafe"
+	"fmt"
 )
 
-const notInitialized = "oglwnd not initialized"
+const (
+	notInitialized = "oglwnd not initialized"
+)
 
 var (
 	initialized bool
 	bldr        Builder
 )
 
-type Window interface {
-	ProcessEvents()
-	ProcessEventsWaiting()
-	Destroy()
+type Properties struct {
+	Quit bool
+	Visible bool
+	window *tWindow
+}
+
+type DefaultHandler struct {
 }
 
 type tWindow struct {
 	data unsafe.Pointer
+	handler Handler
+	visible bool
 }
 
 // Builder is an abstraction of initialization procedures for this package.
@@ -87,15 +95,20 @@ func Destroy() {
 }
 
 // New returns a new Window object.
-func New() (Window, error) {
+func New(handler Handler) (Window, error) {
 	if initialized {
 		var errNum C.int
 		var errStrExtra *C.char
 		window := new(tWindow)
+		if handler == nil {
+			window.handler = new(DefaultHandler)
+		} else {
+			window.handler = handler
+		}
 		C.oglwnd_new_window(bldr.CBuilder(), &window.data, unsafe.Pointer(window), &errNum, &errStrExtra)
 		err := bldr.Error(errNum, errStrExtra)
 		if err != nil {
-			window.Destroy()
+			window.destroy()
 			C.oglwnd_free_mem(unsafe.Pointer(errStrExtra))
 			window = nil
 		}
@@ -112,25 +125,61 @@ func ProcessEvents() {
 	}
 }
 
-func ProcessEventsWaiting() {
+func ProcessEventsBlocking() {
 	if initialized {
-		C.oglwnd_process_events_waiting();
+		C.oglwnd_process_events_blocking();
 	} else {
 		panic(notInitialized)
 	}
 }
 
-func (window *tWindow) Destroy() {
-	C.oglwnd_destroy_window(window.data)
-	window.data = nil
+func (props *Properties) Apply() {
+	props.window.applyProps(props)
+}
+
+func (handler *DefaultHandler) OnCloseRequest(props *Properties) {
+	props.Quit = true
+	props.Apply()
 }
 
 func (window *tWindow) ProcessEvents() {
 	C.oglwnd_process_window_events(window.data)
 }
 
-func (window *tWindow) ProcessEventsWaiting() {
-	C.oglwnd_process_window_events_waiting(window.data)
+func (window *tWindow) ProcessEventsBlocking() {
+	C.oglwnd_process_window_events_blocking(window.data)
+}
+
+func (window *tWindow) Show() {
+	window.visible = true
+	C.oglwnd_show(window.data)
+}
+
+func (window *tWindow) Valid() bool {
+	return window.data != nil
+}
+
+func (window *tWindow) Props() *Properties {
+	props := new(Properties)
+	props.window = window
+	return props
+}
+
+func (window *tWindow) applyProps(props *Properties) {
+	if props.Quit {
+		window.destroy()
+	} else {
+		if window.visible != props.Visible {
+			if props.Visible {
+				window.Show()
+			}
+		}
+	}
+}
+
+func (window *tWindow) destroy() {
+	C.oglwnd_destroy_window(window.data)
+	window.data = nil
 }
 
 // NewCBuilder initializes an instance of C.builder_t. Returns pointer to it.
@@ -156,39 +205,39 @@ func (builder *DefaultBuilder) Error(errNum C.int, errStrExtra *C.char) error {
 		var errStr string
 		switch errNum {
 		case 1:
-			errStr = "get module instance failed"
+			errStr = "get module instance failed (1)"
 		case 2:
-			errStr = "register dummy class failed"
+			errStr = "register dummy class failed (2)"
 		case 3:
-			errStr = "create dummy window failed"
+			errStr = "create dummy window failed (3)"
 		case 4:
-			errStr = "get dummy device context failed"
+			errStr = "get dummy device context failed (4)"
 		case 5:
-			errStr = "choose dummy pixel format failed"
+			errStr = "choose dummy pixel format failed (5)"
 		case 6:
-			errStr = "set dummy pixel format failed"
+			errStr = "set dummy pixel format failed (6)"
 		case 7:
-			errStr = "create dummy render context failed"
+			errStr = "create dummy render context failed (7)"
 		case 8:
-			errStr = "make dummy context current failed"
+			errStr = "make dummy context current failed (8)"
 		case 9:
-			errStr = "load wglChoosePixelFormatARB failed"
+			errStr = "load wglChoosePixelFormatARB failed (9)"
 		case 10:
-			errStr = "load wglCreateContextAttribsARB failed"
+			errStr = "load wglCreateContextAttribsARB failed (10)"
 		case 11:
-			errStr = "register class failed"
+			errStr = "register class failed (11)"
 		case 12:
-			errStr = "create window failed"
+			errStr = "create window failed (12)"
 		case 13:
-			errStr = "get device context failed"
+			errStr = "get device context failed (13)"
 		case 14:
-			errStr = "choose pixel format failed"
+			errStr = "choose pixel format failed (14)"
 		case 15:
-			errStr = "set pixel format failed"
+			errStr = "set pixel format failed (15)"
 		case 16:
-			errStr = "create render context failed"
+			errStr = "create render context failed (16)"
 		case 17:
-			errStr = "make context current failed"
+			errStr = "make context current failed (17)"
 		default:
 			errStr = "unknown"
 		}
@@ -198,4 +247,15 @@ func (builder *DefaultBuilder) Error(errNum C.int, errStrExtra *C.char) error {
 		return errors.New(errStr)
 	}
 	return nil
+}
+
+//export goOnCloseRequest
+func goOnCloseRequest(data unsafe.Pointer) {
+	window := (*tWindow)(data)
+	window.handler.OnCloseRequest(window.Props())
+}
+
+//export goDebug
+func goDebug(a, b C.int, c, d C.vblong) {
+	fmt.Println(a, b, c, d)
 }

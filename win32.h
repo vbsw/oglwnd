@@ -4,6 +4,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <wchar.h>
+#include <stdio.h>
 #include <gl/GL.h>
 
 // from wgl.h
@@ -42,6 +43,8 @@ static HINSTANCE                         instance                   = NULL;
 static PFNWGLCHOOSEPIXELFORMATARBPROC    wglChoosePixelFormatARB    = NULL;
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
 
+#define CLASS_NAME TEXT("oglwnd_cls")
+
 typedef struct {
 	WNDCLASSEX cls;
 	HWND hndl;
@@ -71,22 +74,14 @@ void init_class_impl(window_data_t *data, HINSTANCE instance, int *err_num, char
 void init_window_impl(window_data_t *data, int *err_num, char **err_str_extra);
 void init_context_impl(window_data_t *data, int *err_num, char **err_str_extra);
 
-static int is_class_registered(HINSTANCE const instance, LPCTSTR const name) {
-	WNDCLASSEXW wcx;
+static int is_class_registered(LPCTSTR const name) {
+	WNDCLASSEX wcx;
 	if (GetClassInfoEx(instance, name, &wcx))
 		return 1;
 	return 0;
 }
 
 
-
-typedef struct {
-	int x, y;
-} t2i_t;
-
-static BOOL     running = FALSE;
-static window_t dummy   = { {sizeof(WNDCLASSEX), 0, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL}, NULL, NULL, NULL };
-static window_t window  = { {sizeof(WNDCLASSEX), 0, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL}, NULL, NULL, NULL };
 
 static struct {
 	int x, y, width, height;

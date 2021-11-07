@@ -38,7 +38,7 @@ static void init_wgl(dummy_data_t *const data, void *const cpfarb, void *const c
 			PFNWGLCHOOSEPIXELFORMATARBPROC *const wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC*)cpfarb;
 			wglChoosePixelFormatARB[0] = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
 			if (wglChoosePixelFormatARB[0]) {
-				PFNWGLCREATECONTEXTATTRIBSARBPROC *const wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC*)cpfarb;
+				PFNWGLCREATECONTEXTATTRIBSARBPROC *const wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC*)ccaarb;
 				wglCreateContextAttribsARB[0] = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
 				if (!wglCreateContextAttribsARB[0]) {
 					err_num[0] = 10;

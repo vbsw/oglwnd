@@ -14,6 +14,12 @@ import (
 func TestInit(t *testing.T) {
 	err := Init()
 	if err == nil {
+		window, err2 := New()
+		if err2 == nil {
+			window.Destroy()
+		} else {
+			t.Error(err2.Error())
+		}
 		Destroy()
 	} else {
 		t.Error(err.Error())

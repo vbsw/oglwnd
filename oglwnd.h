@@ -14,9 +14,10 @@ extern void oglwnd_destroy_window(void *data);
 extern void oglwnd_destroy();
 extern void oglwnd_free_mem(void *mem);
 extern void oglwnd_process_events();
-extern void oglwnd_process_events_waiting();
+extern void oglwnd_process_events_blocking();
 extern void oglwnd_process_window_events(void *data);
-extern void oglwnd_process_window_events_waiting(void *data);
+extern void oglwnd_process_window_events_blocking(void *data);
+extern void oglwnd_show(void *data);
 #elif defined(OGLWND_X)
 extern void oglwnd_new_builder(void **builder);
 extern void oglwnd_destroy_builder(void *builder, char *str);

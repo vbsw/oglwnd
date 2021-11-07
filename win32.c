@@ -11,24 +11,6 @@
 #include "win32_dummy.h"
 #include "win32_builder.h"
 
-static TCHAR str_buffer_50[50];
-static int class_counter = 0;
-
-static LPTSTR new_class_name() {
-	#ifdef UNICODE
-	const int length = swprintf(str_buffer_50, 50, L"oglwnd_cls_%i", class_counter++);
-	#else
-	const int length = snprintf(str_buffer_50, 50, "oglwnd_cls_%i", class_counter++);
-	#endif
-	if (length > 0) {
-		const size_t size = sizeof(TCHAR) * (size_t)(length + 1);
-		LPTSTR const class_name = (LPTSTR)malloc(size);
-		memcpy(class_name, str_buffer_50, size);
-		return class_name;
-	}
-	return NULL;
-}
-
 static LRESULT CALLBACK windowProc(HWND const hWnd, const UINT message, const WPARAM wParam, const LPARAM lParam) {
 	LRESULT result = 0;
 	if (message == WM_NCCREATE) {
@@ -38,7 +20,13 @@ static LRESULT CALLBACK windowProc(HWND const hWnd, const UINT message, const WP
 		result = DefWindowProc(hWnd, message, wParam, lParam);
 	} else {
 		window_data_t *const data = (window_data_t*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-		result = DefWindowProc(hWnd, message, wParam, lParam);
+		switch (message) {
+		case WM_CLOSE:
+			goOnCloseRequest(data->go_data);
+			break;
+		default:
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+		}
 	}
 	return result;
 }
@@ -80,8 +68,9 @@ void oglwnd_destroy_window(void *const data) {
 			DestroyWindow(window_data->window.hndl);
 		}
 		UnregisterClass(window_data->window.cls.lpszClassName, window_data->window.cls.hInstance);
-		if (window_data->window.cls.lpszClassName)
-			free((void*)window_data->window.cls.lpszClassName);
+		/* stop event queue thread */
+		if (!is_class_registered(window_data->window.cls.lpszClassName))
+			PostQuitMessage(0);
 		free(window_data);
 	}
 }
@@ -102,9 +91,9 @@ void oglwnd_process_events() {
 	}
 }
 
-void oglwnd_process_events_waiting() {
+void oglwnd_process_events_blocking() {
 	MSG msg;
-	while (GetMessage(&msg, NULL, 0, 0)) {
+	while (GetMessage(&msg, NULL, 0, 0) > 0) {
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
@@ -119,13 +108,18 @@ void oglwnd_process_window_events(void *const data) {
 	}
 }
 
-void oglwnd_process_window_events_waiting(void *const data) {
+void oglwnd_process_window_events_blocking(void *const data) {
 	MSG msg;
 	window_data_t *const window_data = (window_data_t*)data;
-	while (GetMessage(&msg, window_data->window.hndl, 0, 0)) {
+	while (GetMessage(&msg, window_data->window.hndl, 0, 0) > 0) {
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
+}
+
+void oglwnd_show(void *const data) {
+	window_data_t *const window_data = (window_data_t*)data;
+	ShowWindow(window_data->window.hndl, SW_SHOWDEFAULT);
 }
 
 void new_window_impl(window_data_t **const data, HINSTANCE const instance, void *go_data, int *const err_num, char **const err_str_extra) {
@@ -136,7 +130,6 @@ void new_window_impl(window_data_t **const data, HINSTANCE const instance, void 
 
 void init_class_impl(window_data_t *const data, HINSTANCE const instance, int *const err_num, char **const err_str_extra) {
 	if (err_num[0] == 0) {
-		LPTSTR const class_name = new_class_name();
 		data->window.cls.cbSize = sizeof(WNDCLASSEX);
 		data->window.cls.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
 		data->window.cls.lpfnWndProc = windowProc;
@@ -144,14 +137,12 @@ void init_class_impl(window_data_t *const data, HINSTANCE const instance, int *c
 		data->window.cls.cbWndExtra = 0;
 		data->window.cls.hInstance = instance;
 		data->window.cls.hIcon = LoadIcon(NULL, IDI_WINLOGO);
-		data->window.cls.hCursor = cursor.cust;
+		data->window.cls.hCursor = LoadCursor(NULL, IDC_ARROW);
 		data->window.cls.hbrBackground = NULL;
 		data->window.cls.lpszMenuName = NULL;
-		data->window.cls.lpszClassName = class_name;
+		data->window.cls.lpszClassName = CLASS_NAME;
 		data->window.cls.hIconSm = NULL;
-		if (RegisterClassEx(&data->window.cls) == INVALID_ATOM) {
-			if (class_name)
-				free(class_name);
+		if (!is_class_registered(data->window.cls.lpszClassName) && RegisterClassEx(&data->window.cls) == INVALID_ATOM) {
 			err_num[0] = 11;
 		}
 	}
@@ -171,8 +162,8 @@ void init_context_impl(window_data_t *const data, int *const err_num, char **con
 		data->window.dc = GetDC(data->window.hndl);
 		if (data->window.dc) {
 			int pixelFormat;
-			BOOL status;
-			UINT numFormats;
+			BOOL status = FALSE;
+			UINT numFormats = 0;
 			const int pixelAttribs[] = {
 				WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
 				WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
