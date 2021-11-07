@@ -122,6 +122,15 @@ void oglwnd_show(void *const data) {
 	ShowWindow(window_data->window.hndl, SW_SHOWDEFAULT);
 }
 
+void oglwnd_set_title(void *const data, char *const title) {
+	BOOL converted = FALSE;
+	window_data_t *const window_data = (window_data_t*)data;
+	LPCTSTR const title_conv = convert_str(title, &converted);
+	SetWindowText(window_data->window.hndl, title_conv);
+	if (converted)
+		free((void*)title_conv);
+}
+
 void new_window_impl(window_data_t **const data, HINSTANCE const instance, void *go_data, int *const err_num, char **const err_str_extra) {
 	data[0] = (window_data_t*)malloc(sizeof(window_data_t));
 	ZeroMemory(data[0], sizeof(window_data_t));

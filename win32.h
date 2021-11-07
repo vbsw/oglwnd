@@ -81,6 +81,18 @@ static int is_class_registered(LPCTSTR const name) {
 	return 0;
 }
 
+static LPCTSTR convert_str(LPCSTR const cstr, BOOL *const converted) {
+	#ifdef UNICODE
+	const size_t length = strlen(cstr) + 1;
+	LPWSTR const wstr = malloc(sizeof(WCHAR) * length);
+	MultiByteToWideChar(CP_UTF8, 0, cstr, length, wstr, length);
+	converted[0] = TRUE;
+	return (LPCTSTR)wstr;
+	#else
+	return cstr;
+	#endif
+}
+
 
 
 static struct {

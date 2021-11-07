@@ -7,15 +7,15 @@
 
 package oglwnd
 
-// #cgo CFLAGS: -DOGLWND_WIN32
+// #cgo CFLAGS: -DOGLWND_WIN32 -DUNICODE
 // #cgo LDFLAGS: -luser32 -lgdi32 -lOpenGL32
 // #include "oglwnd.h"
 // typedef unsigned long vblong;
 import "C"
 import (
 	"errors"
-	"unsafe"
 	"fmt"
+	"unsafe"
 )
 
 const (
@@ -29,8 +29,6 @@ var (
 
 // Properties of the window.
 type Properties struct {
-	Quit bool
-	Visible bool
 	window *tWindow
 }
 
@@ -39,9 +37,10 @@ type DefaultHandler struct {
 }
 
 type tWindow struct {
-	data unsafe.Pointer
+	data    unsafe.Pointer
 	handler Handler
 	visible bool
+	title   string
 }
 
 // Builder is an abstraction of initialization for this package.
@@ -107,10 +106,11 @@ func New(handler Handler) (Window, error) {
 		} else {
 			window.handler = handler
 		}
+		window.title = "OpenGL"
 		C.oglwnd_new_window(bldr.CBuilder(), &window.data, unsafe.Pointer(window), &errNum, &errStrExtra)
 		err := bldr.Error(errNum, errStrExtra)
 		if err != nil {
-			window.destroy()
+			window.Destroy()
 			C.oglwnd_free_mem(unsafe.Pointer(errStrExtra))
 			window = nil
 		}
@@ -123,7 +123,7 @@ func New(handler Handler) (Window, error) {
 // If no messages available this function returns.
 func ProcessEvents() {
 	if initialized {
-		C.oglwnd_process_events();
+		C.oglwnd_process_events()
 	} else {
 		panic(notInitialized)
 	}
@@ -133,21 +133,20 @@ func ProcessEvents() {
 // This function blocks until further messages are available and returns only if all windows are destroyed.
 func ProcessEventsBlocking() {
 	if initialized {
-		C.oglwnd_process_events_blocking();
+		C.oglwnd_process_events_blocking()
 	} else {
 		panic(notInitialized)
 	}
 }
 
-// Apply applies changes to window.
-func (props *Properties) Apply() {
-	props.window.applyProps(props)
+// OnCloseRequest is called when a request to close the window has been made.
+func (handler *DefaultHandler) OnCloseRequest(window Window) {
+	window.Destroy()
 }
 
-// OnCloseRequest is called when a request to close the window has been made.
-func (handler *DefaultHandler) OnCloseRequest(props *Properties) {
-	props.Quit = true
-	props.Apply()
+func (window *tWindow) Destroy() {
+	C.oglwnd_destroy_window(window.data)
+	window.data = nil
 }
 
 // ProcessEvents retrieves messages from thread's message queue for this window and calls its handler to process it.
@@ -162,6 +161,23 @@ func (window *tWindow) ProcessEventsBlocking() {
 	C.oglwnd_process_window_events_blocking(window.data)
 }
 
+// Props returns properties of the window.
+func (window *tWindow) Props() *Properties {
+	props := new(Properties)
+	props.window = window
+	return props
+}
+
+// SetTitle sets the title of the window.
+func (window *tWindow) SetTitle(title string) {
+	if window.title != title {
+		window.title = title
+		ctitle := C.CString(title)
+		C.oglwnd_set_title(window.data, ctitle)
+		C.oglwnd_free_mem(unsafe.Pointer(ctitle))
+	}
+}
+
 // Show makes window visible.
 func (window *tWindow) Show() {
 	window.visible = true
@@ -171,30 +187,6 @@ func (window *tWindow) Show() {
 // Valid returns true, if window is valid, and false otherwise (e.g. after window has been destroyed).
 func (window *tWindow) Valid() bool {
 	return window.data != nil
-}
-
-// Props returns properties of the window.
-func (window *tWindow) Props() *Properties {
-	props := new(Properties)
-	props.window = window
-	return props
-}
-
-func (window *tWindow) applyProps(props *Properties) {
-	if props.Quit {
-		window.destroy()
-	} else {
-		if window.visible != props.Visible {
-			if props.Visible {
-				window.Show()
-			}
-		}
-	}
-}
-
-func (window *tWindow) destroy() {
-	C.oglwnd_destroy_window(window.data)
-	window.data = nil
 }
 
 // NewCBuilder initializes an instance of C.builder_t. Returns pointer to it.
@@ -214,7 +206,7 @@ func (builder *DefaultBuilder) CBuilder() unsafe.Pointer {
 	return builder.cbuilder
 }
 
-// Error creates and returns an error from errNum. Parameter errStrExtra is appended, if it isn't nil.
+// Error creates an error from errNum and returns it. Parameter errStrExtra is appended, if it isn't nil.
 func (builder *DefaultBuilder) Error(errNum C.int, errStrExtra *C.char) error {
 	if errNum > 0 {
 		var errStr string
@@ -267,7 +259,7 @@ func (builder *DefaultBuilder) Error(errNum C.int, errStrExtra *C.char) error {
 //export goOnCloseRequest
 func goOnCloseRequest(data unsafe.Pointer) {
 	window := (*tWindow)(data)
-	window.handler.OnCloseRequest(window.Props())
+	window.handler.OnCloseRequest(window)
 }
 
 //export goDebug

@@ -18,6 +18,7 @@ extern void oglwnd_process_events_blocking();
 extern void oglwnd_process_window_events(void *data);
 extern void oglwnd_process_window_events_blocking(void *data);
 extern void oglwnd_show(void *data);
+extern void oglwnd_set_title(void *data, char *title);
 #elif defined(OGLWND_X)
 extern void oglwnd_new_builder(void **builder);
 extern void oglwnd_destroy_builder(void *builder, char *str);
