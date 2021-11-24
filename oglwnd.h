@@ -5,16 +5,18 @@
 extern "C" {
 #endif
 
-#if defined(_OGLWND_WIN32)
-extern void oglwnd_init(int x, int y, int w, int h, int wMin, int hMin, int wMax, int hMax, int c, int b, int d, int r, int f, int l, int *err);
-extern void oglwnd_clear(float r, float g, float b, float a);
-extern void oglwnd_get_window_props(int *x, int *y, int *w, int *h, int *wMin, int *hMin, int *wMax, int *hMax, int *b, int *d, int *r, int *f, int *l);
-extern void oglwnd_set_window_props(int x, int y, int w, int h, int wMin, int hMin, int wMax, int hMax, int b, int d, int r, int f, int l);
-extern void oglwnd_show();
-extern void oglwnd_main_loop();
-extern void oglwnd_destroy();
-extern void oglwnd_stop();
-#elif defined(_OGLWND_LINUX)
+#if defined(OGLWND_WIN32)
+typedef unsigned long oglwnd_ul_t;
+extern void oglwnd_init(int *err, oglwnd_ul_t *err_win32);
+extern void oglwnd_process_events();
+extern void oglwnd_process_events_blocking();
+extern void oglwnd_window_new(void **data, void *go_obj, int *err, oglwnd_ul_t *err_win32, char **err_str);
+extern void oglwnd_ctx_make_current(void *data, int *err, oglwnd_ul_t *err_win32, char **err_str);
+extern void oglwnd_ctx_release(void *data, int *err, oglwnd_ul_t *err_win32, char **err_str);
+extern void oglwnd_swap_buffers(void *data, int *err, oglwnd_ul_t *err_win32, char **err_str);
+extern void oglwnd_window_destroy(void *const data);
+extern void oglwnd_free_mem(void *mem);
+#elif defined(OGLWND_LINUX)
 #endif
 
 #ifdef __cplusplus

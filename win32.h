@@ -1,5 +1,9 @@
-#ifndef OGLWND_H
-#define OGLWND_H
+/*
+ *          Copyright 2021, Vitali Baumtrok.
+ * Distributed under the Boost Software License, Version 1.0.
+ *     (See accompanying file LICENSE or copy at
+ *        http://www.boost.org/LICENSE_1_0.txt)
+ */
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -28,12 +32,10 @@
 #define WGL_CONTEXT_PROFILE_MASK_ARB      0x9126
 #define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
 
-
 #define WGL_SWAP_METHOD_EXT               0x2007
 #define WGL_SWAP_EXCHANGE_EXT             0x2028
 #define WGL_SWAP_COPY_EXT                 0x2029
 #define WGL_SWAP_UNDEFINED_EXT            0x202A
-
 
 #define DUMMY_CLASS_NAME TEXT("vb_cls_dmy")
 #define CLASS_NAME TEXT("vb_cls")
@@ -49,19 +51,13 @@ static PFNWGLCHOOSEPIXELFORMATARBPROC    wglChoosePixelFormatARB    = NULL;
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
 
 typedef struct {
-	int x, y;
-} t2i_t;
-
-typedef struct {
 	WNDCLASSEX cls;
 	HWND hndl;
 	HDC dc;
 	HGLRC rc;
 } window_t;
 
-static BOOL     running = FALSE;
-static window_t dummy   = { {sizeof(WNDCLASSEX), 0, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL}, NULL, NULL, NULL };
-static window_t window  = { {sizeof(WNDCLASSEX), 0, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL}, NULL, NULL, NULL };
+static window_t dummy = { {sizeof(WNDCLASSEX), 0, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL}, NULL, NULL, NULL };
 
 static struct {
 	int x, y, width, height;
@@ -97,7 +93,12 @@ static struct {
 static struct {
 	HMONITOR hndl;
 	int x, y, width, height;
-} monitor = { NULL, 0, 0, 640, 480 };
+} monitor = { NULL, 0, 0, 1920, 1080 };
+
+typedef struct {
+	window_t window;
+	void *go_obj;
+} wnd_data_t;
 
 static int pressed[255];
 
@@ -282,4 +283,27 @@ static int get_keycode(const UINT message, const WPARAM wParam, const LPARAM lPa
 	return key;
 }
 
-#endif /* OGLWND_H */
+static void window_release(window_t *const wnd) {
+	if (wnd->rc) {
+		wglMakeCurrent(NULL, NULL);
+		wglDeleteContext(wnd->rc);
+		wnd->rc = NULL;
+	}
+	if (wnd->dc) {
+		ReleaseDC(wnd->hndl, wnd->dc);
+		wnd->dc = NULL;
+	}
+	if (wnd->hndl) {
+		DestroyWindow(wnd->hndl);
+		wnd->hndl = NULL;
+	}
+	if (wnd->cls.lpszClassName)
+		UnregisterClass(wnd->cls.lpszClassName, instance);
+}
+
+static int is_class_registered(LPCTSTR const name) {
+	WNDCLASSEX wcx;
+	if (GetClassInfoEx(instance, name, &wcx))
+		return 1;
+	return 0;
+}

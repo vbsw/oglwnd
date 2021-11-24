@@ -8,8 +8,6 @@
 // Package oglwnd creates a window with OpenGL 3.0 context.
 package oglwnd
 
-import "C"
-
 const (
 	KeyA           = 4
 	KeyB           = 5
@@ -118,135 +116,17 @@ const (
 	KeyRAlt        = 230
 )
 
-var (
-	running bool
-	err     error
-	hn      Handler
-	window  Window
+const (
+	notInitialized = "oglwnd not initialized"
 )
 
-type Config struct {
-	X, Y                  int
-	Width, Height         uint
-	MinWidth, MinHeight   uint
-	MaxWidth, MaxHeight   uint
-	Quit, Centered        bool
-	Borderless, Dragable  bool
-	Resizable, Fullscreen bool
-	MouseLocked           bool
-}
+var (
+	initialized bool
+)
 
-type Window struct {
-	ClientX, ClientY      int
-	ClientW, ClientH      uint
-	MinWidth, MinHeight   uint
-	MaxWidth, MaxHeight   uint
-	Quit                  bool
-	Borderless, Dragable  bool
-	Resizable, Fullscreen bool
-	MouseLocked           bool
-}
-
-type Handler interface {
-	OnConfig(config *Config) error
-	OnClose(window *Window) error
-	OnOpenGLInit() error
-	OnFirstUpdate(window *Window) error
-	OnUpdate(window *Window) error
-	OnKeyDown(window *Window, key, repeat int) error
-	OnKeyUp(window *Window, key int) error
-	OnMove(window *Window) error
-	OnResize(window *Window) error
-	OnFirstWindowSize(window *Window) error
-	OnFocusLoose(window *Window) error
-	OnFocusGain(window *Window) error
-	OnMouseMove(window *Window) error
-	OnUpdateStop(window *Window) error
-	OnUpdateContinue(window *Window) error
-	OnButtonDown(window *Window, button int, doubleClick bool) error
-	OnButtonUp(window *Window, button int) error
-	OnWheel(window *Window, wheel float32) error
-}
-
-type DefaultHandler struct {
-}
-
-func (dhn *DefaultHandler) OnConfig(config *Config) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnClose(window *Window) error {
-	window.Quit = true
-	return nil
-}
-
-func (dhn *DefaultHandler) OnOpenGLInit() error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnFirstUpdate(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnUpdate(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnKeyDown(window *Window, key, repeat int) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnKeyUp(window *Window, key int) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnMove(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnResize(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnFirstWindowSize(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnFocusLoose(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnFocusGain(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnMouseMove(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnUpdateStop(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnUpdateContinue(window *Window) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnButtonDown(window *Window, button int, doubleClick bool) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnButtonUp(window *Window, button int) error {
-	return nil
-}
-
-func (dhn *DefaultHandler) OnWheel(window *Window, wheel float32) error {
-	return nil
-}
-
-func boolToCInt(b bool) C.int {
-	if b {
-		return C.int(1)
-	}
-	return C.int(0)
+// Context provides OpenGL context functions.
+type Context interface {
+	MakeCurrent() error
+	Release() error
+	SwapBuffers() error
 }

@@ -5,15 +5,16 @@
  *        http://www.boost.org/LICENSE_1_0.txt)
  */
 
-// Package oglwnd creates a window with OpenGL 3.0 context.
 package oglwnd
 
-// #cgo CFLAGS: -D_OGLWND_LINUX
+// #cgo CFLAGS: -DOGLWND_LINUX
 // #include "oglwnd.h"
-// import "C"
+import "C"
 
-// Start creates a window with OpenGL 3.0 context and starts the main loop.
-func Start(handler Handler) error {
-	/* TODO */
+// Init initializes functions needed to create windows with OpenGL context.
+func Init() error {
+	if !initialized {
+		return nil
+	}
 	return nil
 }
