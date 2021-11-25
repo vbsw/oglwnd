@@ -22,6 +22,7 @@ void oglwnd_window_destroy(void *const data) {
 	}
 }
 
+/*
 static DWORD get_style() {
 	DWORD style;
 	if (config.borderless)
@@ -36,6 +37,7 @@ static DWORD get_style() {
 			style = WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX;
 	return style;
 }
+*/
 
 void oglwnd_free_mem(void *const mem) {
 	free(mem);
@@ -57,20 +59,69 @@ void oglwnd_process_events_blocking() {
 	}
 }
 
-void oglwnd_window_new(void **const data, void *const go_obj, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
+void oglwnd_init(int *const err, oglwnd_ul_t *const err_win32) {
 	int error = 0;
 	oglwnd_ul_t error_win32 = 0;
-	char *error_str = NULL;
-	wnd_data_t **const wnd_data = (wnd_data_t**)data;
-	window_alloc(wnd_data, go_obj, &error, &error_win32, &error_str);
-	window_class_init(wnd_data[0], &error, &error_win32, &error_str);
-	window_create(wnd_data[0], &error, &error_win32, &error_str);
-	window_context_init(wnd_data[0], &error, &error_win32, &error_str);
-	if (error) {
-		oglwnd_window_destroy(data[0]);
-		err[0] = error;
-		err_win32[0] = error_win32;
-		err_str[0] = error_str;
+	module_init(&error, &error_win32);
+	dummy_class_init(&error, &error_win32);
+	dummy_window_create(&error, &error_win32);
+	dummy_context_init(&error, &error_win32);
+	wgl_functions_init(&error, &error_win32);
+	monitor_init(&error, &error_win32);
+	window_release(&dummy);
+	err[0] = error;
+	err_win32[0] = error_win32;
+}
+
+void oglwnd_window_new(void **const data, void *const go_obj, const int x, const int y, const int w, const int h, const int wn, const int hn,
+	const int wx, const int hx, const int b, const int d, const int r, const int f, const int l, const int c, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
+	if (err[0] == 0) {
+		int error = 0;
+		oglwnd_ul_t error_win32 = 0;
+		char *error_str = NULL;
+		wnd_data_t **const wnd_data = (wnd_data_t**)data;
+		window_alloc(wnd_data, go_obj, &error, &error_win32, &error_str);
+		if (error == 0) {
+			config_t *const config = &wnd_data[0]->config;
+			config->x = x;
+			config->y = y;
+			config->width = w;
+			config->height = h;
+			config->width_min = wn;
+			config->height_min = hn;
+			config->width_max = wx;
+			config->height_max = hx;
+			config->centered = c;
+			config->borderless = b;
+			config->dragable = d;
+			config->resizable = r;
+			config->fullscreen = f;
+			config->locked = l;
+			config_ensure(config);
+		} else {
+			oglwnd_window_destroy(data[0]);
+			err[0] = error;
+			err_win32[0] = error_win32;
+			err_str[0] = error_str;
+		}
+	}
+}
+
+void oglwnd_window_init(void *const data, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
+	if (err[0] == 0) {
+		int error = 0;
+		oglwnd_ul_t error_win32 = 0;
+		char *error_str = NULL;
+		wnd_data_t *const wnd_data = (wnd_data_t*)data;
+		window_class_init(wnd_data, &error, &error_win32, &error_str);
+		window_create(wnd_data, &error, &error_win32, &error_str);
+		window_context_init(wnd_data, &error, &error_win32, &error_str);
+		if (error) {
+			oglwnd_window_destroy(data);
+			err[0] = error;
+			err_win32[0] = error_win32;
+			err_str[0] = error_str;
+		}
 	}
 }
 

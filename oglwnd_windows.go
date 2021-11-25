@@ -18,12 +18,9 @@ import (
 
 // Window is a window with OpenGL context.
 type Window struct {
-	data unsafe.Pointer
-}
-
-// WindowInitParams is the window's initialization parameters.
-type WindowInitParams struct {
-	ClientX, ClientY, ClientWidth, ClientHeight int
+	data                unsafe.Pointer
+	handler             Handler
+	threaded, updatable bool
 }
 
 // tContext provides OpenGL context functions.
@@ -31,6 +28,7 @@ type tContext struct {
 	data unsafe.Pointer
 }
 
+// MakeCurrent makes OpenGL context current to this thread.
 func (ctx *tContext) MakeCurrent() error {
 	var errC C.int
 	var errWin32C C.oglwnd_ul_t
@@ -46,6 +44,7 @@ func (ctx *tContext) MakeCurrent() error {
 	return err
 }
 
+// Release makes all current OpenGL contexts (to this thread) not current.
 func (ctx *tContext) Release() error {
 	var errC C.int
 	var errWin32C C.oglwnd_ul_t
@@ -61,6 +60,7 @@ func (ctx *tContext) Release() error {
 	return err
 }
 
+// SwapBuffers swaps the front and back buffers of the window.
 func (ctx *tContext) SwapBuffers() error {
 	var errC C.int
 	var errWin32C C.oglwnd_ul_t
@@ -96,8 +96,9 @@ func Init() error {
 func ProcessEvents() {
 	if initialized {
 		C.oglwnd_process_events()
+	} else {
+		panic(notInitialized)
 	}
-	panic(notInitialized)
 }
 
 // ProcessEventsBlocking retrieves messages from thread's message queue for all windows and calls window's handler to process it.
@@ -105,18 +106,41 @@ func ProcessEvents() {
 func ProcessEventsBlocking() {
 	if initialized {
 		C.oglwnd_process_events_blocking()
+	} else {
+		panic(notInitialized)
 	}
-	panic(notInitialized)
 }
 
 // New creates a window with OpenGL 3.0 context and returns it.
-func New(params *WindowInitParams) (*Window, error) {
+func New(params *InitParams) (*Window, error) {
 	if initialized {
 		var errC C.int
 		var errWin32C C.oglwnd_ul_t
 		var errStrC *C.char
+		if params == nil {
+			params = new(InitParams)
+			params.Init()
+		}
+		x := C.int(params.ClientX)
+		y := C.int(params.ClientY)
+		w := C.int(params.ClientWidth)
+		h := C.int(params.ClientHeight)
+		wn := C.int(params.ClientMinWidth)
+		hn := C.int(params.ClientMinHeight)
+		wx := C.int(params.ClientMaxWidth)
+		hx := C.int(params.ClientMaxHeight)
+		c := boolToCInt(params.Centered)
+		l := boolToCInt(params.MouseLocked)
+		b := boolToCInt(params.Borderless)
+		d := boolToCInt(params.Dragable)
+		r := boolToCInt(params.Resizable)
+		f := boolToCInt(params.Fullscreen)
 		window := new(Window)
-		C.oglwnd_window_new(&window.data, unsafe.Pointer(window), &errC, &errWin32C, &errStrC)
+		window.handler = params.handler
+		window.threaded = params.Threaded
+		window.updatable = params.Updatable
+		C.oglwnd_window_new(&window.data, unsafe.Pointer(window), x, y, w, h, wn, hn, wx, hx, b, d, r, f, l, c, &errC, &errWin32C, &errStrC)
+		C.oglwnd_window_init(window.data, &errC, &errWin32C, &errStrC)
 		if errC == 0 {
 			return window, nil
 		}
@@ -129,14 +153,18 @@ func New(params *WindowInitParams) (*Window, error) {
 	panic(notInitialized)
 }
 
-func (window *Window) Destroy() {
+// Quit stops the handler thread, if available, closes
+// the window and releases all ressources associated with it.
+func (window *Window) Quit() {
 	C.oglwnd_window_destroy(window.data)
 }
 
+// Context returns the window's OpenGL context.
 func (window *Window) Context() Context {
 	return &tContext{window.data}
 }
 
+// errNumToError converts an error number to a Go error object.
 func errNumToError(err int, errWin32 uint64, errStrC *C.char) error {
 	if err != 0 {
 		var errStr string
@@ -183,7 +211,7 @@ func errNumToError(err int, errWin32 uint64, errStrC *C.char) error {
 			errStr = "oglwnd: unknown error"
 		}
 		if errWin32 > 0 {
-			errStr = errStr + " - " + string(errWin32)
+			errStr = errStr + " - " + uint64ToString(errWin32)
 		}
 		if errStrC != nil {
 			errStr = errStr + "; " + C.GoString(errStrC)

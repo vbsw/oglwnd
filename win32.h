@@ -59,16 +59,16 @@ typedef struct {
 
 static window_t dummy = { {sizeof(WNDCLASSEX), 0, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL}, NULL, NULL, NULL };
 
-static struct {
+typedef struct {
 	int x, y, width, height;
-	int widthMin, heightMin;
-	int widthMax, heightMax;
+	int width_min, height_min;
+	int width_max, height_max;
 	int centered;
 	int borderless, dragable;
 	int resizable, fullscreen;
 	int locked;
 	int wnd_x, wnd_y, wnd_width, wnd_height;
-} config;
+} config_t;
 
 static struct {
 	int dragging, dragging_cust, locked;
@@ -97,6 +97,7 @@ static struct {
 
 typedef struct {
 	window_t window;
+	config_t config;
 	void *go_obj;
 } wnd_data_t;
 

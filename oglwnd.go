@@ -8,6 +8,8 @@
 // Package oglwnd creates a window with OpenGL 3.0 context.
 package oglwnd
 
+import "C"
+
 const (
 	KeyA           = 4
 	KeyB           = 5
@@ -124,9 +126,82 @@ var (
 	initialized bool
 )
 
+// InitParams is the window's initialization parameters.
+type InitParams struct {
+	ClientX, ClientY, ClientWidth, ClientHeight                      int
+	ClientMinWidth, ClientMinHeight, ClientMaxWidth, ClientMaxHeight int
+	handler                                                          Handler
+	Centered, MouseLocked, Borderless, Dragable                      bool
+	Resizable, Fullscreen, Threaded, Updatable                       bool
+}
+
 // Context provides OpenGL context functions.
 type Context interface {
 	MakeCurrent() error
 	Release() error
 	SwapBuffers() error
+}
+
+// Props holds properties of the window. Used for checking and updating the window.
+type Props struct {
+	ClientX, ClientY, ClientWidth, ClientHeight                      int
+	ClientMinWidth, ClientMinHeight, ClientMaxWidth, ClientMaxHeight int
+	MouseX, MouseY                                                   int
+	MouseLocked, Borderless, Dragable, Resizable, Fullscreen         bool
+	Quit                                                             bool
+}
+
+// Handler is an abstraction of event handling.
+type Handler interface {
+	OnClose(*Props) error
+	OnUpdate(*Props) error
+}
+
+// DefaultHandler is the default handling of events.
+type DefaultHandler struct {
+}
+
+// Init sets the initialization parameters to default values.
+func (params *InitParams) Init() {
+	params.ClientWidth = 640
+	params.ClientHeight = 480
+	params.ClientMaxWidth = 99999
+	params.ClientMaxHeight = 99999
+	params.Centered = true
+	params.Resizable = true
+}
+
+// OnClose is called at window's close request.
+func (hand *DefaultHandler) OnClose(props *Props) error {
+	props.Quit = true
+	return nil
+}
+
+// OnUpdate is called after all window's events has been processed.
+// This function must be enabled at window's creation.
+func (hand *DefaultHandler) OnUpdate(props *Props) error {
+	return nil
+}
+
+// uint64ToString converts a positive integer value to string.
+func uint64ToString(value uint64) string {
+	var byteArr [20]byte
+	var decimals int
+	tenth := value / 10
+	byteArr[19] = byte(value - tenth*10 + 48)
+	value = tenth
+	for decimals = 1; value > 0 && decimals < 20; decimals++ {
+		tenth := value / 10
+		byteArr[19-decimals] = byte(value - tenth*10 + 48)
+		value = tenth
+	}
+	return string(byteArr[20-decimals:])
+}
+
+// boolToCInt converts bool value to C int value.
+func boolToCInt(b bool) C.int {
+	if b {
+		return C.int(1)
+	}
+	return C.int(0)
 }

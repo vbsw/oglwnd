@@ -119,18 +119,19 @@ static void monitor_init(int *const err, oglwnd_ul_t *const err_win32) {
 	}
 }
 
-void oglwnd_init(int *const err, oglwnd_ul_t *const err_win32) {
-	int error = 0;
-	oglwnd_ul_t error_win32 = 0;
-	module_init(&error, &error_win32);
-	dummy_class_init(&error, &error_win32);
-	dummy_window_create(&error, &error_win32);
-	dummy_context_init(&error, &error_win32);
-	wgl_functions_init(&error, &error_win32);
-	monitor_init(&error, &error_win32);
-	window_release(&dummy);
-	err[0] = error;
-	err_win32[0] = error_win32;
+static void config_ensure(config_t *const config) {
+	if (config->width <= 0)
+		config->width = 640;
+	if (config->height <= 0)
+		config->height = 480;
+	if (config->width_min < 0)
+		config->width_min = 0;
+	if (config->height_min < 0)
+		config->height_min = 0;
+	if (config->width_max < 0)
+		config->width_max = 99999;
+	if (config->height_max < 0)
+		config->height_max = 99999;
 }
 
 static void window_alloc(wnd_data_t **const data, void *go_obj, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
@@ -162,7 +163,7 @@ static void window_class_init(wnd_data_t *const data, int *const err, oglwnd_ul_
 	}
 }
 
-void window_create(wnd_data_t *const data, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
+static void window_create(wnd_data_t *const data, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
 	if (err[0] == 0) {
 		const DWORD style = WS_OVERLAPPEDWINDOW;
 		data->window.hndl = CreateWindow(data->window.cls.lpszClassName, TEXT("OpenGL"), style, 10, 10, 640, 480, NULL, NULL, data->window.cls.hInstance, (void*)data);
@@ -173,7 +174,7 @@ void window_create(wnd_data_t *const data, int *const err, oglwnd_ul_t *const er
 	}
 }
 
-void window_context_init(wnd_data_t *const data, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
+static void window_context_init(wnd_data_t *const data, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
 	if (err[0] == 0) {
 		data->window.dc = GetDC(data->window.hndl);
 		if (data->window.dc) {
