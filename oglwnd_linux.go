@@ -10,11 +10,3 @@ package oglwnd
 // #cgo CFLAGS: -DOGLWND_LINUX
 // #include "oglwnd.h"
 import "C"
-
-// Init initializes functions needed to create windows with OpenGL context.
-func Init() error {
-	if !initialized {
-		return nil
-	}
-	return nil
-}

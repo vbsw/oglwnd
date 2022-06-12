@@ -1,5 +1,5 @@
 /*
- *          Copyright 2021, Vitali Baumtrok.
+ *          Copyright 2022, Vitali Baumtrok.
  * Distributed under the Boost Software License, Version 1.0.
  *     (See accompanying file LICENSE or copy at
  *        http://www.boost.org/LICENSE_1_0.txt)
@@ -7,6 +7,210 @@
 
 #if defined(OGLWND_WIN32)
 
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <gl/GL.h>
+#include "oglwnd.h"
+
+/* Go functions can not be passed to c directly.            */
+/* They can only be called from c.                          */
+/* This code is an indirection to call Go callbacks.        */
+/* _cgo_export.h is generated automatically by cgo.         */
+#include "_cgo_export.h"
+
+// from wgl.h
+#define WGL_DRAW_TO_WINDOW_ARB            0x2001
+#define WGL_SWAP_METHOD_ARB               0x2007
+#define WGL_SUPPORT_OPENGL_ARB            0x2010
+#define WGL_DOUBLE_BUFFER_ARB             0x2011
+#define WGL_PIXEL_TYPE_ARB                0x2013
+#define WGL_TYPE_RGBA_ARB                 0x202B
+#define WGL_ACCELERATION_ARB              0x2003
+#define WGL_FULL_ACCELERATION_ARB         0x2027
+#define WGL_SWAP_EXCHANGE_ARB             0x2028
+#define WGL_SWAP_COPY_ARB                 0x2029
+#define WGL_SWAP_UNDEFINED_ARB            0x202A
+#define WGL_COLOR_BITS_ARB                0x2014
+#define WGL_ALPHA_BITS_ARB                0x201B
+#define WGL_DEPTH_BITS_ARB                0x2022
+#define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB     0x2092
+#define WGL_CONTEXT_PROFILE_MASK_ARB      0x9126
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
+
+/* from wglext.h */
+typedef BOOL(WINAPI * PFNWGLCHOOSEPIXELFORMATARBPROC) (HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
+typedef HGLRC(WINAPI * PFNWGLCREATECONTEXTATTRIBSARBPROC) (HDC hDC, HGLRC hShareContext, const int *attribList);
+
+#define CLASS_NAME TEXT("oglwnd_window")
+#define CLASS_NAME_DUMMY TEXT("oglwnd_dummy")
+
+typedef struct {
+	int err_num;
+	oglwnd_ul_t err_win32;
+	char *err_str;
+} error_t;
+
+typedef struct {
+	HDC dc;
+	HGLRC rc;
+} context_t;
+
+typedef struct {
+	WNDCLASSEX cls;
+	HWND hndl;
+	context_t ctx;
+} window_t;
+
+typedef struct {
+	int x, y, width, height;
+	int x_wnd, y_wnd, width_wnd, height_wnd;
+} client_t;
+
+typedef struct {
+	window_t wnd;
+	client_t client;
+	HMONITOR monitor;
+	LPTSTR title;
+	DWORD style;
+	BOOL initialized;
+	void *ext1;
+	void *cust;
+	void (*class_register)(void*, void**);
+	void (*window_create)(void*, void**);
+	void (*context_create)(void*, void**);
+	BOOL (*message_proc)(void*, HWND, UINT, WPARAM, LPARAM, LRESULT*);
+	void (*destroy)(void*, void**);
+	void (*free)(void*, void**);
+	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
+	PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
+} window_data_t;
+
+static HINSTANCE instance = NULL;
+
+static void *error_new(const int err_num, const DWORD err_win32, char *const err_str) {
+	error_t *const err = (error_t*)malloc(sizeof(error_t));
+	err->err_num = err_num;
+	err->err_win32 = (oglwnd_ul_t)err_win32;
+	err->err_str = err_str;
+	return err;
+}
+
+static void module_init(void **const err) {
+	if (instance == NULL) {
+		if (err[0] == NULL) {
+			instance = GetModuleHandle(NULL);
+			if (!instance)
+				err[0] = error_new(2, GetLastError(), NULL);
+		}
+	}
+}
+
+#include "win32_dummy.h"
+
+void window_free(void *const data) {
+	if (data)
+		free(data);
+}
+
+void oglwnd_error(void *const err, int *const err_num, oglwnd_ul_t *const err_win32, char **const err_str) {
+	error_t *const error = (error_t*)err;
+	err_num[0] = error->err_num;
+	err_win32[0] = error->err_win32;
+	err_str[0] = error->err_str;
+}
+
+void oglwnd_free(void *const data) {
+	free(data);
+}
+
+void oglwnd_window_allocate(void **const data, void **const err) {
+	if (err[0] == NULL) {
+		data[0] = malloc(sizeof(window_data_t));
+		if (data[0])
+			ZeroMemory(data[0], sizeof(window_data_t));
+		else
+			err[0] = error_new(1, ERROR_SUCCESS, NULL);
+	}
+}
+
+void oglwnd_window_free(void *const data, void **const err) {
+	if (data) {
+		window_data_t *const wnd_data = (window_data_t*)data;
+		if (wnd_data[0].free)
+			wnd_data[0].free(data, err);
+		else
+			free(data);
+	}
+}
+
+void oglwnd_window_init_dummy(void *const data, void **const err) {
+	module_init(err);
+	if (err[0] == NULL) {
+		window_data_t *const wnd_data = (window_data_t*)data;
+		wnd_data[0].class_register = dummy_class_register;
+		wnd_data[0].window_create = dummy_window_create;
+		wnd_data[0].context_create = dummy_context_init;
+		wnd_data[0].destroy = dummy_destroy;
+		wnd_data[0].free = NULL;
+	}
+}
+
+void oglwnd_window_create(void *const data, void **const err) {
+	if (err[0] == NULL) {
+		window_data_t *const wnd_data = (window_data_t*)data;
+if (wnd_data[0].class_register)
+		wnd_data[0].class_register(data, err);
+		wnd_data[0].window_create(data, err);
+		wnd_data[0].context_create(data, err);
+	}
+}
+
+void oglwnd_window_destroy(void *const data, void **const err) {
+	if (err[0] == NULL) {
+		window_data_t *const wnd_data = (window_data_t*)data;
+		wnd_data[0].destroy(data, err);
+	}
+}
+
+void oglwnd_window_init_opengl30(void *const data, const int go_obj, const int x, const int y, const int w, const int h, const int wn, const int hn,
+	const int wx, const int hx, const int b, const int d, const int r, const int f, const int l, const int c, void **const err) {
+	module_init(err);
+}
+
+void oglwnd_context_make_current(void *const data, void **const err) {
+	if (err[0] == NULL) {
+		context_t *const ctx = (context_t*)data;
+		if (!wglMakeCurrent(ctx[0].dc, ctx[0].rc))
+			err[0] = error_new(56, GetLastError(), NULL);
+	}
+}
+
+void oglwnd_context_release(void *const data, void **const err) {
+	if (err[0] == NULL) {
+		context_t *const ctx = (context_t*)data;
+		if (ctx[0].rc && ctx[0].rc == wglGetCurrentContext())
+			if (!wglMakeCurrent(NULL, NULL))
+				err[0] = error_new(57, GetLastError(), NULL);
+	}
+}
+
+void oglwnd_context_swap_buffers(void *const data, void **const err) {
+	if (err[0] == NULL) {
+		context_t *const ctx = (context_t*)data;
+		if (!SwapBuffers(ctx[0].dc))
+			err[0] = error_new(61, GetLastError(), NULL);
+	}
+}
+
+void oglwnd_window_context(void *const data, void **const ctx) {
+	window_data_t *const wnd_data = (window_data_t*)data;
+	ctx[0] = (void*)&wnd_data[0].wnd.ctx;
+}
+
+
+/*
 #include "oglwnd.h"
 #include "win32.h"
 #include "win32_init.h"
@@ -15,14 +219,13 @@ void oglwnd_window_destroy(void *const data) {
 	if (data) {
 		wnd_data_t *const wnd_data = (wnd_data_t*)data;
 		window_release(&wnd_data->window);
-		/* stop event queue thread */
+		// stop event queue thread
 		if (!is_class_registered(wnd_data->window.cls.lpszClassName))
 			PostQuitMessage(0);
 		free(wnd_data);
 	}
 }
 
-/*
 static DWORD get_style() {
 	DWORD style;
 	if (config.borderless)
@@ -37,7 +240,6 @@ static DWORD get_style() {
 			style = WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX;
 	return style;
 }
-*/
 
 void oglwnd_free_mem(void *const mem) {
 	free(mem);
@@ -148,6 +350,7 @@ void oglwnd_swap_buffers(void *const data, int *const err, oglwnd_ul_t *const er
 		err_win32[0] = GetLastError();
 	}
 }
+*/
 
 /* #if defined(_OGLWIN_WIN32) */
 #endif

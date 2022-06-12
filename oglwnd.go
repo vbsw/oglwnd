@@ -1,5 +1,5 @@
 /*
- *          Copyright 2021, Vitali Baumtrok.
+ *          Copyright 2022, Vitali Baumtrok.
  * Distributed under the Boost Software License, Version 1.0.
  *     (See accompanying file LICENSE or copy at
  *        http://www.boost.org/LICENSE_1_0.txt)
@@ -8,6 +8,38 @@
 // Package oglwnd creates a window with OpenGL 3.0 context.
 package oglwnd
 
+import "C"
+import (
+	"unsafe"
+)
+
+const (
+	notAllocated = "window's C memory not allocated"
+	notInitialized = "window not initialized"
+	notInitializedCtx = "opengl context not initialized"
+)
+
+type Window struct {
+	Ptr unsafe.Pointer
+	Initialized bool
+}
+
+// Context represents OpenGL context.
+type Context interface {
+	MakeCurrent() error
+	Release() error
+	SwapBuffers() error
+}
+
+// toCInt converts bool value to C int value.
+func toCInt(b bool) C.int {
+	if b {
+		return C.int(1)
+	}
+	return C.int(0)
+}
+
+/*
 import "C"
 
 const (
@@ -118,10 +150,6 @@ const (
 	KeyRAlt        = 230
 )
 
-const (
-	notInitialized = "oglwnd not initialized"
-)
-
 var (
 	initialized bool
 )
@@ -197,11 +225,4 @@ func uint64ToString(value uint64) string {
 	}
 	return string(byteArr[20-decimals:])
 }
-
-// boolToCInt converts bool value to C int value.
-func boolToCInt(b bool) C.int {
-	if b {
-		return C.int(1)
-	}
-	return C.int(0)
-}
+*/

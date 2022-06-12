@@ -6,7 +6,7 @@
 oglwnd is a package for Go to create a window with OpenGL 3.0 context. It is published on <https://github.com/vbsw/oglwnd>.
 
 ## Copyright
-Copyright 2021, Vitali Baumtrok (vbsw@mailbox.org).
+Copyright 2022, Vitali Baumtrok (vbsw@mailbox.org).
 
 oglwnd is distributed under the Boost Software License, version 1.0. (See accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -14,27 +14,6 @@ oglwnd is distributed in the hope that it will be useful, but WITHOUT ANY WARRAN
 
 ## Compile
 Install Go (https://golang.org/doc/install). For Cgo install a C compiler (<https://jmeubank.github.io/tdm-gcc/>).
-
-	// example
-	package main
-	import "github.com/vbsw/oglwnd"
-	import "fmt"
-
-	type myHandler struct {
-		oglwnd.DefaultHandler
-	}
-
-	func (h *myHandler) OnUpdate(window *oglwnd.Window) error {
-		oglwnd.Clear(0.2, 0.2, 0.2, 0)
-		return nil
-	}
-
-	func main() {
-		err := oglwnd.Start(new(myHandler))
-		if err == nil {
-			fmt.Println(err.Error())
-		}
-	}
 
 To compile without console on windows use
 

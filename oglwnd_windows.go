@@ -13,8 +13,273 @@ package oglwnd
 import "C"
 import (
 	"errors"
+	"strconv"
 	"unsafe"
 )
+
+// Parameters is the window's initialization parameters.
+type Parameters struct {
+	Dummy bool
+	ClientX, ClientY, ClientWidth, ClientHeight                      int
+	ClientMinWidth, ClientMinHeight, ClientMaxWidth, ClientMaxHeight int
+	Centered, MouseLocked, Borderless, Dragable                      bool
+	Resizable, Fullscreen, Threaded, AutoUpdate                      bool
+}
+
+type tContext struct {
+	ptr unsafe.Pointer
+}
+
+// Reset sets the initialization parameters to default values.
+func (params *Parameters) Reset() {
+	params.Dummy = false
+	params.ClientX = 0
+	params.ClientY = 0
+	params.ClientWidth = 640
+	params.ClientHeight = 480
+	params.ClientMinWidth = 0
+	params.ClientMinHeight = 0
+	params.ClientMaxWidth = 99999
+	params.ClientMaxHeight = 99999
+	params.Centered = true
+	params.MouseLocked = false
+	params.Borderless = false
+	params.Dragable = false
+	params.Resizable = true
+	params.Fullscreen = false
+	params.Threaded = false
+	params.AutoUpdate = false
+}
+
+func (context *tContext) MakeCurrent() error {
+	var errC unsafe.Pointer
+	if context.ptr != nil {
+		C.oglwnd_context_make_current(context.ptr, &errC)
+	} else {
+		panic(notInitializedCtx)
+	}
+	return toError(errC)
+}
+
+func (context *tContext) Release() error {
+	var errC unsafe.Pointer
+	if context.ptr != nil {
+		C.oglwnd_context_release(context.ptr, &errC)
+	} else {
+		panic(notInitializedCtx)
+	}
+	return toError(errC)
+}
+
+func (context *tContext) SwapBuffers() error {
+	var errC unsafe.Pointer
+	if context.ptr != nil {
+		C.oglwnd_context_swap_buffers(context.ptr, &errC)
+	} else {
+		panic(notInitializedCtx)
+	}
+	return toError(errC)
+}
+
+func New() *Window {
+	window := new(Window)
+	window.allocate()
+	return window
+}
+
+func (wnd *Window) Init(params *Parameters) error {
+	var err error
+	if wnd.Ptr != nil {
+		params = ensureParams(params)
+		err = wnd.init(params)
+		wnd.Initialized = bool(err == nil)
+	} else {
+		panic(notAllocated)
+	}
+	return err
+}
+
+func (wnd *Window) Create() error {
+	var errC unsafe.Pointer
+	if wnd.Ptr != nil {
+		if wnd.Initialized {
+			C.oglwnd_window_create(wnd.Ptr, &errC)
+		} else {
+			panic(notInitialized)
+		}
+	} else {
+		panic(notAllocated)
+	}
+	return toError(errC)
+}
+
+func (wnd *Window) Context() Context {
+	var ctx *tContext
+	if wnd.Ptr != nil {
+		var ctxPtr unsafe.Pointer
+		ctx = new(tContext)
+		C.oglwnd_window_context(wnd.Ptr, &ctxPtr)
+		ctx.ptr = ctxPtr
+	} else {
+		panic(notAllocated)
+	}
+	return ctx
+}
+
+// Destroy
+func (wnd *Window) Destroy() error {
+	var errC unsafe.Pointer
+	if wnd.Ptr != nil {
+		if wnd.Initialized {
+			C.oglwnd_window_destroy(wnd.Ptr, &errC)
+		}
+	} else {
+		panic(notAllocated)
+	}
+	return toError(errC)
+}
+
+// ReleaseMemory deallocates memory Ptr points to.
+func (wnd *Window) ReleaseMemory() error {
+	var errC unsafe.Pointer
+	if wnd.Ptr != nil {
+		C.oglwnd_window_free(wnd.Ptr, &errC)
+		wnd.Ptr = nil
+	}
+	return toError(errC)
+}
+
+func (wnd *Window) allocate() error {
+	var errC unsafe.Pointer
+	C.oglwnd_window_allocate(&wnd.Ptr, &errC)
+	return toError(errC)
+}
+
+func (wnd *Window) init(params *Parameters) error {
+	var errC unsafe.Pointer
+	if params.Dummy {
+		C.oglwnd_window_init_dummy(wnd.Ptr, &errC)
+	} else {
+		x := C.int(params.ClientX)
+		y := C.int(params.ClientY)
+		w := C.int(params.ClientWidth)
+		h := C.int(params.ClientHeight)
+		wn := C.int(params.ClientMinWidth)
+		hn := C.int(params.ClientMinHeight)
+		wx := C.int(params.ClientMaxWidth)
+		hx := C.int(params.ClientMaxHeight)
+		c := toCInt(params.Centered)
+		l := toCInt(params.MouseLocked)
+		b := toCInt(params.Borderless)
+		d := toCInt(params.Dragable)
+		r := toCInt(params.Resizable)
+		f := toCInt(params.Fullscreen)
+		C.oglwnd_window_init_opengl30(wnd.Ptr, 0, x, y, w, h, wn, hn, wx, hx, b, d, r, f, l, c, &errC)
+	}
+	return toError(errC)
+}
+
+func ensureParams(params *Parameters) *Parameters {
+	if params == nil {
+		params = new(Parameters)
+		params.Reset()
+	}
+/*
+	if params.handler == nil {
+		params.handler = new(DefaultHandler)
+	}
+*/
+	return params
+}
+
+// toError converts C error to Go error.
+func toError(errC unsafe.Pointer) error {
+	if errC != nil {
+		var errStr string
+		var errNumC C.int
+		var errWin32 C.oglwnd_ul_t
+		var errStrC *C.char
+		C.oglwnd_error(errC, &errNumC, &errWin32, &errStrC)
+		switch errNumC {
+		case 1:
+			errStr = "allocate memory failed"
+		case 2:
+			errStr = "get module instance failed"
+		case 3:
+			errStr = "register dummy class failed"
+		case 4:
+			errStr = "create dummy window failed"
+		case 5:
+			errStr = "get dummy device context failed"
+		case 6:
+			errStr = "choose dummy pixel format failed"
+		case 7:
+			errStr = "set dummy pixel format failed"
+		case 8:
+			errStr = "create dummy render context failed"
+		case 10:
+			errStr = "release dummy context failed"
+		case 11:
+			errStr = "deleting dummy render context failed"
+		case 12:
+			errStr = "destroying dummy window failed"
+		case 13:
+			errStr = "unregister dummy class failed"
+		case 14:
+			errStr = "swap dummy buffer failed"
+		case 15:
+			errStr = "window functions not initialized"
+		case 50:
+			errStr = "register class failed"
+		case 51:
+			errStr = "create window failed"
+		case 52:
+			errStr = "get device context failed"
+		case 53:
+			errStr = "choose pixel format failed"
+		case 54:
+			errStr = "set pixel format failed"
+		case 55:
+			errStr = "create render context failed"
+		case 56:
+			errStr = "make context current failed"
+		case 57:
+			errStr = "release context failed"
+		case 58:
+			errStr = "deleting render context failed"
+		case 59:
+			errStr = "destroying window failed"
+		case 60:
+			errStr = "unregister class failed"
+		case 61:
+			errStr = "swap buffer failed"
+		case 62:
+			errStr = "set title failed"
+		case 63:
+			errStr = "context pointer is null"
+		case 64:
+			errStr = "window pointer is null"
+		default:
+			errStr = "g2d: unknown error " + strconv.FormatUint(uint64(errNumC), 10)
+		}
+		if errWin32 != 0 {
+			errStr = errStr + " (" + strconv.FormatUint(uint64(errWin32), 10) + ")"
+		}
+		if errStrC != nil {
+			errStr = errStr + "; " + C.GoString(errStrC)
+			C.oglwnd_free(unsafe.Pointer(errStrC))
+		}
+		return errors.New(errStr)
+	}
+	return nil
+}
+
+//export goDebug
+func goDebug(a, b C.int, c, d C.oglwnd_ul_t) {
+	println(a, b, c, d)
+}
+
+/*
 
 // Window is a window with OpenGL context.
 type Window struct {
@@ -220,3 +485,4 @@ func errNumToError(err int, errWin32 uint64, errStrC *C.char) error {
 	}
 	return nil
 }
+*/
