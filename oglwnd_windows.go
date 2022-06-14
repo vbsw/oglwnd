@@ -30,6 +30,12 @@ type tContext struct {
 	ptr unsafe.Pointer
 }
 
+// ProcessEvents retrieves messages from thread's message queue for all windows.
+// This function blocks until further messages are available and returns only if all windows are destroyed.
+func ProcessEvents() {
+	C.oglwnd_process_events()
+}
+
 // Reset sets the initialization parameters to default values.
 func (params *Parameters) Reset() {
 	params.Dummy = false
@@ -103,7 +109,11 @@ func (wnd *Window) Create() error {
 	var errC unsafe.Pointer
 	if wnd.Ptr != nil {
 		if wnd.Initialized {
-			C.oglwnd_window_create(wnd.Ptr, &errC)
+			if C.oglwnd_window_funcs_avail(wnd.Ptr) == 1 {
+				C.oglwnd_window_create(wnd.Ptr, &errC)
+			} else {
+				panic(notInitializedFuncs)
+			}
 		} else {
 			panic(notInitialized)
 		}
@@ -131,7 +141,11 @@ func (wnd *Window) Destroy() error {
 	var errC unsafe.Pointer
 	if wnd.Ptr != nil {
 		if wnd.Initialized {
-			C.oglwnd_window_destroy(wnd.Ptr, &errC)
+			if C.oglwnd_window_dt_func_avail(wnd.Ptr) == 1 {
+				C.oglwnd_window_destroy(wnd.Ptr, &errC)
+			} else {
+				panic(notInitializedDtFunc)
+			}
 		}
 	} else {
 		panic(notAllocated)

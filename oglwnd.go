@@ -17,6 +17,8 @@ const (
 	notAllocated = "window's C memory not allocated"
 	notInitialized = "window not initialized"
 	notInitializedCtx = "opengl context not initialized"
+	notInitializedFuncs = "window functions not initialized"
+	notInitializedDtFunc = "window destroy function not initialized"
 )
 
 type Window struct {

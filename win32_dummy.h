@@ -5,6 +5,14 @@
  *        http://www.boost.org/LICENSE_1_0.txt)
  */
 
+static BOOL is_dummy(window_t *const window) {
+	#ifdef UNICODE
+	return (wcscmp(window[0].cls.lpszClassName, CLASS_NAME_DUMMY) == 0);
+	#else
+	return (strcmp(window[0].cls.lpszClassName, CLASS_NAME_DUMMY) == 0);
+	#endif
+}
+
 static void dummy_class_register(void *const data, void **const err) {
 	if (err[0] == NULL) {
 		window_data_t *const wnd_data = (window_data_t*)data;
@@ -40,7 +48,7 @@ static void dummy_window_create(void *const data, void **const err) {
 	}
 }
 
-static void dummy_context_init(void *const data, void **const err) {
+static void dummy_context_create(void *const data, void **const err) {
 	if (err[0] == NULL) {
 		window_data_t *const wnd_data = (window_data_t*)data;
 		wnd_data[0].wnd.ctx.dc = GetDC(wnd_data[0].wnd.hndl);

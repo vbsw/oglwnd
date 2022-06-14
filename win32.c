@@ -107,12 +107,21 @@ static void module_init(void **const err) {
 	}
 }
 
-#include "win32_dummy.h"
-
-void window_free(void *const data) {
-	if (data)
-		free(data);
+static BOOL is_class_registered(window_data_t *const wnd_data) {
+	WNDCLASSEX wcx;
+	if (GetClassInfoEx(wnd_data[0].wnd.cls.hInstance, wnd_data[0].wnd.cls.lpszClassName, &wcx))
+		return TRUE;
+	return FALSE;
 }
+
+static LPCTSTR ensure_title(window_data_t *const wnd_data) {
+	if (wnd_data[0].title)
+		return wnd_data[0].title;
+	return TEXT("OpenGL");
+}
+
+#include "win32_dummy.h"
+#include "win32_ogl30.h"
 
 void oglwnd_error(void *const err, int *const err_num, oglwnd_ul_t *const err_win32, char **const err_str) {
 	error_t *const error = (error_t*)err;
@@ -136,13 +145,11 @@ void oglwnd_window_allocate(void **const data, void **const err) {
 }
 
 void oglwnd_window_free(void *const data, void **const err) {
-	if (data) {
-		window_data_t *const wnd_data = (window_data_t*)data;
-		if (wnd_data[0].free)
-			wnd_data[0].free(data, err);
-		else
-			free(data);
-	}
+	window_data_t *const wnd_data = (window_data_t*)data;
+	if (wnd_data[0].free)
+		wnd_data[0].free(data, err);
+	else
+		free(data);
 }
 
 void oglwnd_window_init_dummy(void *const data, void **const err) {
@@ -151,7 +158,7 @@ void oglwnd_window_init_dummy(void *const data, void **const err) {
 		window_data_t *const wnd_data = (window_data_t*)data;
 		wnd_data[0].class_register = dummy_class_register;
 		wnd_data[0].window_create = dummy_window_create;
-		wnd_data[0].context_create = dummy_context_init;
+		wnd_data[0].context_create = dummy_context_create;
 		wnd_data[0].destroy = dummy_destroy;
 		wnd_data[0].free = NULL;
 	}
@@ -160,7 +167,6 @@ void oglwnd_window_init_dummy(void *const data, void **const err) {
 void oglwnd_window_create(void *const data, void **const err) {
 	if (err[0] == NULL) {
 		window_data_t *const wnd_data = (window_data_t*)data;
-if (wnd_data[0].class_register)
 		wnd_data[0].class_register(data, err);
 		wnd_data[0].window_create(data, err);
 		wnd_data[0].context_create(data, err);
@@ -177,6 +183,14 @@ void oglwnd_window_destroy(void *const data, void **const err) {
 void oglwnd_window_init_opengl30(void *const data, const int go_obj, const int x, const int y, const int w, const int h, const int wn, const int hn,
 	const int wx, const int hx, const int b, const int d, const int r, const int f, const int l, const int c, void **const err) {
 	module_init(err);
+	if (err[0] == NULL) {
+		window_data_t *const wnd_data = (window_data_t*)data;
+		wnd_data[0].class_register = ogl30_class_register;
+		wnd_data[0].window_create = ogl30_window_create;
+		wnd_data[0].context_create = ogl30_context_create;
+		wnd_data[0].destroy = ogl30_destroy;
+		wnd_data[0].free = ogl30_free;
+	}
 }
 
 void oglwnd_context_make_current(void *const data, void **const err) {
@@ -207,6 +221,28 @@ void oglwnd_context_swap_buffers(void *const data, void **const err) {
 void oglwnd_window_context(void *const data, void **const ctx) {
 	window_data_t *const wnd_data = (window_data_t*)data;
 	ctx[0] = (void*)&wnd_data[0].wnd.ctx;
+}
+
+int oglwnd_window_funcs_avail(void *const data) {
+	window_data_t *const wnd_data = (window_data_t*)data;
+	if (wnd_data[0].class_register && wnd_data[0].window_create && wnd_data[0].context_create && wnd_data[0].destroy)
+		return 1;
+	return 0;
+}
+
+int oglwnd_window_dt_func_avail(void *const data) {
+	window_data_t *const wnd_data = (window_data_t*)data;
+	if (wnd_data[0].destroy)
+		return 1;
+	return 0;
+}
+
+void oglwnd_process_events() {
+	MSG msg;
+	while (GetMessage(&msg, NULL, 0, 0) > 0) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
 }
 
 
