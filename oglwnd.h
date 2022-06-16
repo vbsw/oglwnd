@@ -19,6 +19,7 @@ extern void oglwnd_context_make_current(void *data, void **err);
 extern void oglwnd_context_release(void *data, void **err);
 extern void oglwnd_context_swap_buffers(void *data, void **err);
 extern void oglwnd_window_context(void *data, void **ctx);
+extern void oglwnd_window_show(void *data, void **err);
 extern int oglwnd_window_funcs_avail(void *data);
 extern int oglwnd_window_dt_func_avail(void *data);
 extern void oglwnd_process_events();

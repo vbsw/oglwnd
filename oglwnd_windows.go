@@ -136,6 +136,17 @@ func (wnd *Window) Context() Context {
 	return ctx
 }
 
+// Show makes window visible.
+func (wnd *Window) Show() error {
+	var errC unsafe.Pointer
+	if wnd.Ptr != nil {
+		C.oglwnd_window_show(wnd.Ptr, &errC)
+	} else {
+		panic(notAllocated)
+	}
+	return toError(errC)
+}
+
 // Destroy
 func (wnd *Window) Destroy() error {
 	var errC unsafe.Pointer
@@ -188,7 +199,8 @@ func (wnd *Window) init(params *Parameters) error {
 		d := toCInt(params.Dragable)
 		r := toCInt(params.Resizable)
 		f := toCInt(params.Fullscreen)
-		C.oglwnd_window_init_opengl30(wnd.Ptr, 0, x, y, w, h, wn, hn, wx, hx, b, d, r, f, l, c, &errC)
+		objC := C.int(cb.Register(wnd))
+		C.oglwnd_window_init_opengl30(wnd.Ptr, objC, x, y, w, h, wn, hn, wx, hx, b, d, r, f, l, c, &errC)
 	}
 	return toError(errC)
 }
@@ -270,9 +282,7 @@ func toError(errC unsafe.Pointer) error {
 		case 62:
 			errStr = "set title failed"
 		case 63:
-			errStr = "context pointer is null"
-		case 64:
-			errStr = "window pointer is null"
+			errStr = "wgl functions not initialized"
 		default:
 			errStr = "g2d: unknown error " + strconv.FormatUint(uint64(errNumC), 10)
 		}
@@ -288,6 +298,25 @@ func toError(errC unsafe.Pointer) error {
 	return nil
 }
 
+//export goOnClose
+func goOnClose(objIdC C.int) {
+	if wnd, ok := cb.Obj(int(objIdC)).(*Window); ok {
+		println("close")
+		wnd.Destroy()
+	}
+/*
+	if window, ok := hndlValue(int(hndlC)).(*Window); ok {
+		window.updateProps()
+		propsBak := window.props
+		window.err = window.handler.OnClose(&window.props)
+		window.props.Destroy = bool(window.err != nil)
+		if window.props != propsBak {
+			window.applyProps()
+		}
+	}
+*/
+}
+
 //export goDebug
 func goDebug(a, b C.int, c, d C.oglwnd_ul_t) {
 	println(a, b, c, d)
@@ -300,94 +329,6 @@ type Window struct {
 	data                unsafe.Pointer
 	handler             Handler
 	threaded, updatable bool
-}
-
-// tContext provides OpenGL context functions.
-type tContext struct {
-	data unsafe.Pointer
-}
-
-// MakeCurrent makes OpenGL context current to this thread.
-func (ctx *tContext) MakeCurrent() error {
-	var errC C.int
-	var errWin32C C.oglwnd_ul_t
-	var errStrC *C.char
-	C.oglwnd_ctx_make_current(ctx.data, &errC, &errWin32C, &errStrC)
-	if errC == 0 {
-		return nil
-	}
-	err := errNumToError(int(errC), uint64(errWin32C), errStrC)
-	if errStrC != nil {
-		C.oglwnd_free_mem(unsafe.Pointer(errStrC))
-	}
-	return err
-}
-
-// Release makes all current OpenGL contexts (to this thread) not current.
-func (ctx *tContext) Release() error {
-	var errC C.int
-	var errWin32C C.oglwnd_ul_t
-	var errStrC *C.char
-	C.oglwnd_ctx_release(ctx.data, &errC, &errWin32C, &errStrC)
-	if errC == 0 {
-		return nil
-	}
-	err := errNumToError(int(errC), uint64(errWin32C), errStrC)
-	if errStrC != nil {
-		C.oglwnd_free_mem(unsafe.Pointer(errStrC))
-	}
-	return err
-}
-
-// SwapBuffers swaps the front and back buffers of the window.
-func (ctx *tContext) SwapBuffers() error {
-	var errC C.int
-	var errWin32C C.oglwnd_ul_t
-	var errStrC *C.char
-	C.oglwnd_swap_buffers(ctx.data, &errC, &errWin32C, &errStrC)
-	if errC == 0 {
-		return nil
-	}
-	err := errNumToError(int(errC), uint64(errWin32C), errStrC)
-	if errStrC != nil {
-		C.oglwnd_free_mem(unsafe.Pointer(errStrC))
-	}
-	return err
-}
-
-// Init initializes functions needed to create windows with OpenGL context.
-func Init() error {
-	if !initialized {
-		var errC C.int
-		var errWin32C C.oglwnd_ul_t
-		C.oglwnd_init(&errC, &errWin32C)
-		if errC == 0 {
-			initialized = true
-			return nil
-		}
-		return errNumToError(int(errC), uint64(errWin32C), nil)
-	}
-	return nil
-}
-
-// ProcessEvents retrieves messages from thread's message queue for all windows and calls window's handler to process it.
-// If no messages available this function returns.
-func ProcessEvents() {
-	if initialized {
-		C.oglwnd_process_events()
-	} else {
-		panic(notInitialized)
-	}
-}
-
-// ProcessEventsBlocking retrieves messages from thread's message queue for all windows and calls window's handler to process it.
-// This function blocks until further messages are available and returns only if all windows are destroyed.
-func ProcessEventsBlocking() {
-	if initialized {
-		C.oglwnd_process_events_blocking()
-	} else {
-		panic(notInitialized)
-	}
 }
 
 // New creates a window with OpenGL 3.0 context and returns it.
@@ -436,11 +377,6 @@ func New(params *InitParams) (*Window, error) {
 // the window and releases all ressources associated with it.
 func (window *Window) Quit() {
 	C.oglwnd_window_destroy(window.data)
-}
-
-// Context returns the window's OpenGL context.
-func (window *Window) Context() Context {
-	return &tContext{window.data}
 }
 
 // errNumToError converts an error number to a Go error object.

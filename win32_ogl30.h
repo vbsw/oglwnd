@@ -10,7 +10,7 @@ static void ogl30_class_register(void *const data, void **const err) {
 		window_data_t *const wnd_data = (window_data_t*)data;
 		wnd_data[0].wnd.cls.cbSize = sizeof(WNDCLASSEX);
 		wnd_data[0].wnd.cls.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
-		wnd_data[0].wnd.cls.lpfnWndProc = DefWindowProc;
+		wnd_data[0].wnd.cls.lpfnWndProc = windowProc;
 		wnd_data[0].wnd.cls.cbClsExtra = 0;
 		wnd_data[0].wnd.cls.cbWndExtra = 0;
 		wnd_data[0].wnd.cls.hInstance = instance;
@@ -50,55 +50,62 @@ static void ogl30_window_create(void *const data, void **const err) {
 	}
 }
 
+	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
+	PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 static void ogl30_context_create(void *const data, void **const err) {
 	if (err[0] == NULL) {
 		window_data_t *const wnd_data = (window_data_t*)data;
-		wnd_data[0].wnd.ctx.dc = GetDC(wnd_data[0].wnd.hndl);
-		if (wnd_data[0].wnd.ctx.dc) {
-			int pixelFormat;
-			BOOL status = FALSE;
-			UINT numFormats = 0;
-			const int pixelAttribs[] = {
-				WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
-				WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
-				WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
-				/* WGL_SWAP_COPY_ARB might have update problems in fullscreen */
-				/* WGL_SWAP_EXCHANGE_ARB might have problems with start menu in fullscreen */
-				WGL_SWAP_METHOD_ARB, WGL_SWAP_EXCHANGE_ARB,
-				WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
-				WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
-				WGL_COLOR_BITS_ARB, 32,
-				WGL_ALPHA_BITS_ARB, 8,
-				WGL_DEPTH_BITS_ARB, 24,
-				0
-			};
-			const int contextAttributes[] = {
-				WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-				WGL_CONTEXT_MINOR_VERSION_ARB, 0,
-				WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-				0
-			};
-			status = wnd_data[0].wglChoosePixelFormatARB(wnd_data[0].wnd.ctx.dc, pixelAttribs, NULL, 1, &pixelFormat, &numFormats);
-			if (status && numFormats) {
-				PIXELFORMATDESCRIPTOR pfd;
-				ZeroMemory(&pfd, sizeof(PIXELFORMATDESCRIPTOR));
-				DescribePixelFormat(wnd_data[0].wnd.ctx.dc, pixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
-				if (SetPixelFormat(wnd_data[0].wnd.ctx.dc, pixelFormat, &pfd)) {
-					wnd_data[0].wnd.ctx.rc = wnd_data[0].wglCreateContextAttribsARB(wnd_data[0].wnd.ctx.dc, 0, contextAttributes);
-					if (!wnd_data[0].wnd.ctx.rc) {
-						err[0] = error_new(55, GetLastError(), NULL);
+		if (wnd_data[0].wglChoosePixelFormatARB && wnd_data[0].wglCreateContextAttribsARB) {
+			wnd_data[0].wnd.ctx.dc = GetDC(wnd_data[0].wnd.hndl);
+			if (wnd_data[0].wnd.ctx.dc) {
+				int pixelFormat;
+				BOOL status = FALSE;
+				UINT numFormats = 0;
+				const int pixelAttribs[] = {
+					WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+					WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+					WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+					/* WGL_SWAP_COPY_ARB might have update problems in fullscreen */
+					/* WGL_SWAP_EXCHANGE_ARB might have problems with start menu in fullscreen */
+					WGL_SWAP_METHOD_ARB, WGL_SWAP_EXCHANGE_ARB,
+					WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+					WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+					WGL_COLOR_BITS_ARB, 32,
+					WGL_ALPHA_BITS_ARB, 8,
+					WGL_DEPTH_BITS_ARB, 24,
+					0
+				};
+				const int contextAttributes[] = {
+					WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+					WGL_CONTEXT_MINOR_VERSION_ARB, 0,
+					WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+					0
+				};
+				status = wnd_data[0].wglChoosePixelFormatARB(wnd_data[0].wnd.ctx.dc, pixelAttribs, NULL, 1, &pixelFormat, &numFormats);
+				if (status && numFormats) {
+					PIXELFORMATDESCRIPTOR pfd;
+					ZeroMemory(&pfd, sizeof(PIXELFORMATDESCRIPTOR));
+					DescribePixelFormat(wnd_data[0].wnd.ctx.dc, pixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+					if (SetPixelFormat(wnd_data[0].wnd.ctx.dc, pixelFormat, &pfd)) {
+						wnd_data[0].wnd.ctx.rc = wnd_data[0].wglCreateContextAttribsARB(wnd_data[0].wnd.ctx.dc, 0, contextAttributes);
+						if (!wnd_data[0].wnd.ctx.rc) {
+							err[0] = error_new(55, GetLastError(), NULL);
+							wnd_data[0].destroy(data, err);
+						}
+					} else {
+						err[0] = error_new(54, GetLastError(), NULL);
 						wnd_data[0].destroy(data, err);
 					}
 				} else {
-					err[0] = error_new(54, GetLastError(), NULL);
+					err[0] = error_new(53, GetLastError(), NULL);
 					wnd_data[0].destroy(data, err);
 				}
 			} else {
-				err[0] = error_new(53, GetLastError(), NULL);
+				err[0] = error_new(52, ERROR_SUCCESS, NULL);
 				wnd_data[0].destroy(data, err);
 			}
 		} else {
-			err[0] = error_new(52, ERROR_SUCCESS, NULL);
+			err[0] = error_new(63, ERROR_SUCCESS, NULL);
 			wnd_data[0].destroy(data, err);
 		}
 	}

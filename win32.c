@@ -19,6 +19,33 @@
 /* _cgo_export.h is generated automatically by cgo.         */
 #include "_cgo_export.h"
 
+/* Exported functions from Go are:                          */
+/* goOnClose                                                */
+/* goOnFirstUpdate                                          */
+/* goOnUpdate                                               */
+/* goOnKeyDown                                              */
+/* goOnKeyUp                                                */
+/* goOnMove                                                 */
+/* goOnResize                                               */
+/* goOnFirstWindowSize                                      */
+/* goOnMenuEnter                                            */
+/* goOnMenuLeave                                            */
+/* goOnMaximize                                             */
+/* goOnMinimize                                             */
+/* goOnRestore                                              */
+/* goOnFocusLoose                                           */
+/* goOnFocusGain                                            */
+/* goOnMouseMove                                            */
+/* goOnDragBegin                                            */
+/* goOnDragEnd                                              */
+/* goOnDragCustBegin                                        */
+/* goOnDragCustEnd                                          */
+/* goOnResizeBegin                                          */
+/* goOnResizeEnd                                            */
+/* goOnButtonDown                                           */
+/* goOnButtonUp                                             */
+/* goOnWheel                                                */
+
 // from wgl.h
 #define WGL_DRAW_TO_WINDOW_ARB            0x2001
 #define WGL_SWAP_METHOD_ARB               0x2007
@@ -75,6 +102,7 @@ typedef struct {
 	LPTSTR title;
 	DWORD style;
 	BOOL initialized;
+	int go_obj_id;
 	void *ext1;
 	void *cust;
 	void (*class_register)(void*, void**);
@@ -120,8 +148,24 @@ static LPCTSTR ensure_title(window_data_t *const wnd_data) {
 	return TEXT("OpenGL");
 }
 
+static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	LRESULT result = 0;
+	if (message == WM_NCCREATE) {
+		window_data_t *const wnd_data = (window_data_t*)(((CREATESTRUCT*)lParam)->lpCreateParams);
+		if (wnd_data)
+			SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)wnd_data);
+		result = DefWindowProc(hWnd, message, wParam, lParam);
+	} else {
+		window_data_t *const wnd_data = (window_data_t*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+		if (wnd_data == NULL || wnd_data[0].message_proc == NULL || wnd_data[0].message_proc((void*)wnd_data, hWnd, message, wParam, lParam, &result) == FALSE)
+			result = DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	return result;
+}
+
 #include "win32_dummy.h"
 #include "win32_ogl30.h"
+#include "win32_proc.h"
 
 void oglwnd_error(void *const err, int *const err_num, oglwnd_ul_t *const err_win32, char **const err_str) {
 	error_t *const error = (error_t*)err;
@@ -188,8 +232,10 @@ void oglwnd_window_init_opengl30(void *const data, const int go_obj, const int x
 		wnd_data[0].class_register = ogl30_class_register;
 		wnd_data[0].window_create = ogl30_window_create;
 		wnd_data[0].context_create = ogl30_context_create;
+		wnd_data[0].message_proc = ogl30_message_proc;
 		wnd_data[0].destroy = ogl30_destroy;
 		wnd_data[0].free = ogl30_free;
+		wnd_data[0].go_obj_id = go_obj;
 	}
 }
 
@@ -223,6 +269,11 @@ void oglwnd_window_context(void *const data, void **const ctx) {
 	ctx[0] = (void*)&wnd_data[0].wnd.ctx;
 }
 
+void oglwnd_window_show(void *const data, void **const err) {
+	window_data_t *const wnd_data = (window_data_t*)data;
+	ShowWindow(wnd_data[0].wnd.hndl, SW_SHOWDEFAULT);
+}
+
 int oglwnd_window_funcs_avail(void *const data) {
 	window_data_t *const wnd_data = (window_data_t*)data;
 	if (wnd_data[0].class_register && wnd_data[0].window_create && wnd_data[0].context_create && wnd_data[0].destroy)
@@ -253,7 +304,7 @@ void oglwnd_process_events() {
 
 void oglwnd_window_destroy(void *const data) {
 	if (data) {
-		wnd_data_t *const wnd_data = (wnd_data_t*)data;
+		window_data_t *const wnd_data = (window_data_t*)data;
 		window_release(&wnd_data->window);
 		// stop event queue thread
 		if (!is_class_registered(wnd_data->window.cls.lpszClassName))
@@ -317,7 +368,7 @@ void oglwnd_window_new(void **const data, void *const go_obj, const int x, const
 		int error = 0;
 		oglwnd_ul_t error_win32 = 0;
 		char *error_str = NULL;
-		wnd_data_t **const wnd_data = (wnd_data_t**)data;
+		window_data_t **const wnd_data = (window_data_t**)data;
 		window_alloc(wnd_data, go_obj, &error, &error_win32, &error_str);
 		if (error == 0) {
 			config_t *const config = &wnd_data[0]->config;
@@ -350,7 +401,7 @@ void oglwnd_window_init(void *const data, int *const err, oglwnd_ul_t *const err
 		int error = 0;
 		oglwnd_ul_t error_win32 = 0;
 		char *error_str = NULL;
-		wnd_data_t *const wnd_data = (wnd_data_t*)data;
+		window_data_t *const wnd_data = (window_data_t*)data;
 		window_class_init(wnd_data, &error, &error_win32, &error_str);
 		window_create(wnd_data, &error, &error_win32, &error_str);
 		window_context_init(wnd_data, &error, &error_win32, &error_str);
@@ -364,7 +415,7 @@ void oglwnd_window_init(void *const data, int *const err, oglwnd_ul_t *const err
 }
 
 void oglwnd_ctx_make_current(void *const data, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
-	wnd_data_t *const wnd_data = (wnd_data_t*)data;
+	window_data_t *const wnd_data = (window_data_t*)data;
 	if (!wglMakeCurrent(wnd_data->window.dc, wnd_data->window.rc)) {
 		err[0] = 17;
 		err_win32[0] = GetLastError();
@@ -372,7 +423,7 @@ void oglwnd_ctx_make_current(void *const data, int *const err, oglwnd_ul_t *cons
 }
 
 void oglwnd_ctx_release(void *const data, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
-	wnd_data_t *const wnd_data = (wnd_data_t*)data;
+	window_data_t *const wnd_data = (window_data_t*)data;
 	if (!wglMakeCurrent(NULL, NULL)) {
 		err[0] = 18;
 		err_win32[0] = GetLastError();
@@ -380,7 +431,7 @@ void oglwnd_ctx_release(void *const data, int *const err, oglwnd_ul_t *const err
 }
 
 void oglwnd_swap_buffers(void *const data, int *const err, oglwnd_ul_t *const err_win32, char **const err_str) {
-	wnd_data_t *const wnd_data = (wnd_data_t*)data;
+	window_data_t *const wnd_data = (window_data_t*)data;
 	if (!SwapBuffers(wnd_data->window.dc)) {
 		err[0] = 19;
 		err_win32[0] = GetLastError();

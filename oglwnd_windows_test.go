@@ -96,26 +96,19 @@ func TestContextDummy(t *testing.T) {
 	}
 }
 
-/*
-func TestUint64ToString(t *testing.T) {
-	strA := uint64ToString(0)
-	strB := uint64ToString(9)
-	strC := uint64ToString(1000)
-	strD := uint64ToString(10000000000)
-	strE := uint64ToString(11123456781187654311)
-	strF := uint64ToString(11999999999999999999)
-	if strA != "0" {
-		t.Error(strA)
-	} else if strB != "9" {
-		t.Error(strB)
-	} else if strC != "1000" {
-		t.Error(strC)
-	} else if strD != "10000000000" {
-		t.Error(strD)
-	} else if strE != "11123456781187654311" {
-		t.Error(strE)
-	} else if strF != "11999999999999999999" {
-		t.Error(strF)
+func TestOGL30(t *testing.T) {
+	wnd := New()
+	err := wnd.Init(nil)
+	if err == nil {
+		err = wnd.Create()
+		if err == nil {
+			t.Error("uninitialized wgl functions not recognized")
+		}
+	} else {
+		t.Error(err.Error())
+	}
+	err = wnd.ReleaseMemory()
+	if err != nil {
+		t.Error(err.Error())
 	}
 }
-*/

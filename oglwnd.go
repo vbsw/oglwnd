@@ -10,6 +10,7 @@ package oglwnd
 
 import "C"
 import (
+	"github.com/vbsw/golib/callback"
 	"unsafe"
 )
 
@@ -32,6 +33,10 @@ type Context interface {
 	Release() error
 	SwapBuffers() error
 }
+
+var (
+	cb callback.Callback
+)
 
 // toCInt converts bool value to C int value.
 func toCInt(b bool) C.int {
