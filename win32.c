@@ -115,6 +115,7 @@ typedef struct {
 	PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 } window_data_t;
 
+static error_t err_no_mem = {1, ERROR_SUCCESS, NULL};
 static HINSTANCE instance = NULL;
 
 static void *error_new(const int err_num, const DWORD err_win32, char *const err_str) {
@@ -178,13 +179,23 @@ void oglwnd_free(void *const data) {
 	free(data);
 }
 
+void oglwnd_error_free(void *const data) {
+	error_t *const err = (error_t*)data;
+	if (err[0].err_str) {
+		free(err[0].err_str);
+		err[0].err_str = NULL;
+	}
+	if (err != &err_no_mem)
+		free(data);
+}
+
 void oglwnd_window_allocate(void **const data, void **const err) {
 	if (err[0] == NULL) {
 		data[0] = malloc(sizeof(window_data_t));
 		if (data[0])
 			ZeroMemory(data[0], sizeof(window_data_t));
 		else
-			err[0] = error_new(1, ERROR_SUCCESS, NULL);
+			err[0] = (void*)&err_no_mem;
 	}
 }
 

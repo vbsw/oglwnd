@@ -284,15 +284,15 @@ func toError(errC unsafe.Pointer) error {
 		case 63:
 			errStr = "wgl functions not initialized"
 		default:
-			errStr = "g2d: unknown error " + strconv.FormatUint(uint64(errNumC), 10)
+			errStr = "unknown error " + strconv.FormatUint(uint64(errNumC), 10)
 		}
 		if errWin32 != 0 {
 			errStr = errStr + " (" + strconv.FormatUint(uint64(errWin32), 10) + ")"
 		}
 		if errStrC != nil {
 			errStr = errStr + "; " + C.GoString(errStrC)
-			C.oglwnd_free(unsafe.Pointer(errStrC))
 		}
+		C.oglwnd_error_free(errC)
 		return errors.New(errStr)
 	}
 	return nil

@@ -8,6 +8,7 @@ extern "C" {
 #if defined(OGLWND_WIN32)
 typedef unsigned long oglwnd_ul_t;
 extern void oglwnd_error(void *err, int *err_num, oglwnd_ul_t *err_win32, char **err_str);
+extern void oglwnd_error_free(void *data);
 extern void oglwnd_free(void *data);
 extern void oglwnd_window_allocate(void **data, void **err);
 extern void oglwnd_window_free(void *data, void **err);
