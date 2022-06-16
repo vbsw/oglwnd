@@ -87,12 +87,6 @@ func (context *tContext) SwapBuffers() error {
 	return toError(errC)
 }
 
-func New() *Window {
-	window := new(Window)
-	window.allocate()
-	return window
-}
-
 func (wnd *Window) Init(params *Parameters) error {
 	var err error
 	if wnd.Ptr != nil {
@@ -174,7 +168,7 @@ func (wnd *Window) ReleaseMemory() error {
 	return toError(errC)
 }
 
-func (wnd *Window) allocate() error {
+func (wnd *Window) Allocate() error {
 	var errC unsafe.Pointer
 	C.oglwnd_window_allocate(&wnd.Ptr, &errC)
 	return toError(errC)

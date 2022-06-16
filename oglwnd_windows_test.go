@@ -13,7 +13,7 @@ import (
 
 func TestAllocate(t *testing.T) {
 	var window Window
-	err := window.allocate()
+	err := window.Allocate()
 	if err == nil {
 		if window.Ptr != nil {
 			err = window.ReleaseMemory()
@@ -34,16 +34,21 @@ func TestAllocate(t *testing.T) {
 
 func TestDummy(t *testing.T) {
 	var params Parameters
-	dummy := New()
-	params.Dummy = true
-	err := dummy.Init(&params)
+	var dummy Window
+	err := dummy.Allocate()
 	if err == nil {
-		err = dummy.Create()
+		params.Dummy = true
+		err = dummy.Init(&params)
 		if err == nil {
-			err = dummy.Destroy()
+			err = dummy.Create()
 			if err == nil {
-				err = dummy.ReleaseMemory()
-				if err != nil {
+				err = dummy.Destroy()
+				if err == nil {
+					err = dummy.ReleaseMemory()
+					if err != nil {
+						t.Error(err.Error())
+					}
+				} else {
 					t.Error(err.Error())
 				}
 			} else {
@@ -58,57 +63,67 @@ func TestDummy(t *testing.T) {
 }
 
 func TestContextDummy(t *testing.T) {
+	var dummy Window
 	var params Parameters
-	dummy := New()
-	params.Dummy = true
-	err := dummy.Init(&params)
+	err := dummy.Allocate()
 	if err == nil {
-		err = dummy.Create()
-	}
-	if err == nil {
-		ctx := dummy.Context()
-		if ctx != nil {
-			err = ctx.MakeCurrent()
-			if err == nil {
-				err = ctx.SwapBuffers()
+		params.Dummy = true
+		err = dummy.Init(&params)
+		if err == nil {
+			err = dummy.Create()
+		}
+		if err == nil {
+			ctx := dummy.Context()
+			if ctx != nil {
+				err = ctx.MakeCurrent()
 				if err == nil {
-					err = ctx.Release()
-					if err != nil {
+					err = ctx.SwapBuffers()
+					if err == nil {
+						err = ctx.Release()
+						if err != nil {
+							t.Error(err.Error())
+						}
+					} else {
 						t.Error(err.Error())
 					}
 				} else {
 					t.Error(err.Error())
 				}
+				err = nil
 			} else {
-				t.Error(err.Error())
+				t.Error("no dummy context")
 			}
-			err = nil
-		} else {
-			t.Error("no dummy context")
+			err = dummy.Destroy()
 		}
-		err = dummy.Destroy()
-	}
-	if err == nil {
-		err = dummy.ReleaseMemory()
-	}
-	if err != nil {
+		if err == nil {
+			err = dummy.ReleaseMemory()
+		}
+		if err != nil {
+			t.Error(err.Error())
+		}
+	} else {
 		t.Error(err.Error())
 	}
 }
 
 func TestOGL30(t *testing.T) {
-	wnd := New()
-	err := wnd.Init(nil)
+	var wnd Window
+	err := wnd.Allocate()
 	if err == nil {
-		err = wnd.Create()
+		err = wnd.Init(nil)
 		if err == nil {
-			t.Error("uninitialized wgl functions not recognized")
+			err = wnd.Create()
+			if err == nil {
+				t.Error("uninitialized wgl functions not recognized")
+			}
+		} else {
+			t.Error(err.Error())
+		}
+		err = wnd.ReleaseMemory()
+		if err != nil {
+			t.Error(err.Error())
 		}
 	} else {
-		t.Error(err.Error())
-	}
-	err = wnd.ReleaseMemory()
-	if err != nil {
 		t.Error(err.Error())
 	}
 }

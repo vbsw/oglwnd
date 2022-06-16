@@ -120,10 +120,15 @@ static HINSTANCE instance = NULL;
 
 static void *error_new(const int err_num, const DWORD err_win32, char *const err_str) {
 	error_t *const err = (error_t*)malloc(sizeof(error_t));
-	err->err_num = err_num;
-	err->err_win32 = (oglwnd_ul_t)err_win32;
-	err->err_str = err_str;
-	return err;
+	if (err) {
+		err->err_num = err_num;
+		err->err_win32 = (oglwnd_ul_t)err_win32;
+		err->err_str = err_str;
+		return (void*)err;
+	}
+	if (err_str)
+		free(err_str);
+	return (void*)&err_no_mem;
 }
 
 static void module_init(void **const err) {
@@ -195,7 +200,7 @@ void oglwnd_window_allocate(void **const data, void **const err) {
 		if (data[0])
 			ZeroMemory(data[0], sizeof(window_data_t));
 		else
-			err[0] = (void*)&err_no_mem;
+			err[0] = error_new(1, ERROR_SUCCESS, NULL);
 	}
 }
 
