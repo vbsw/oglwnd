@@ -10,7 +10,6 @@ package oglwnd
 
 import "C"
 import (
-	"fmt"
 	"unsafe"
 )
 
@@ -28,7 +27,6 @@ type Properties struct {
 	ClientMinWidth, ClientMinHeight, ClientMaxWidth, ClientMaxHeight int
 	MouseX, MouseY                                                   int
 	MouseLocked, Borderless, Dragable, Resizable, Fullscreen         bool
-	Destroy bool
 }
 
 // Context represents OpenGL context.
@@ -48,12 +46,11 @@ type Window struct {
 
 // Handler is an abstraction of event handling.
 type Handler interface {
-	OnCreate(*Window) error
-	OnShow(*Window) error
-	OnClose(*Window) error
-	OnCustom(*Window, interface{}) error
+	OnCreate(*Window)
+	OnShow(*Window)
+	OnClose(*Window) bool
+	OnCustom(*Window, interface{})
 	OnDestroy(*Window)
-	OnError(*Window, error)
 }
 
 // DefaultHandler is the default implementation of event handler.
@@ -110,39 +107,24 @@ func (cb *tCallback) Unregister(id int) {
 }
 
 // OnCreate is called after window has been created, but before it is made visible.
-func (hand *DefaultHandler) OnCreate(wnd *Window) error {
-	return nil
+func (hand *DefaultHandler) OnCreate(wnd *Window) {
 }
 
 // OnShow is called after the window has been made visible.
-func (hand *DefaultHandler) OnShow(wnd *Window) error {
-	return nil
+func (hand *DefaultHandler) OnShow(wnd *Window) {
 }
 
 // OnClose is called at window's close request.
-func (hand *DefaultHandler) OnClose(wnd *Window) error {
-	wnd.Destroy()
-	return nil
+func (hand *DefaultHandler) OnClose(wnd *Window) bool {
+	return true
 }
 
 // OnCustom is called at window's close request.
-func (hand *DefaultHandler) OnCustom(wnd *Window, event interface{}) error {
-	return nil
+func (hand *DefaultHandler) OnCustom(wnd *Window, event interface{}) {
 }
 
 // OnDestroy is called before window is destroyed.
 func (hand *DefaultHandler) OnDestroy(wnd *Window) {
-}
-
-// OnError is called, if any handler function returns error.
-func (hand *DefaultHandler) OnError(wnd *Window, err error) {
-	fmt.Println("error:", err.Error())
-}
-
-func handleError(wnd *Window, handler Handler, err error) {
-	if err != nil {
-		handler.OnError(wnd, err)
-	}
 }
 
 // toCInt converts bool value to C int value.

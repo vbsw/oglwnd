@@ -327,13 +327,10 @@ func toError(errC unsafe.Pointer) error {
 func oglwndOnClose(objIdC C.int) {
 	wnd := cb.wnds[int(objIdC)]
 	handler := cb.hndls[wnd.objId]
-	wnd.Props.Destroy = false
-	err := handler.OnClose(wnd)
-	handleError(wnd, handler, err)
-	if wnd.err != nil || wnd.Props.Destroy {
-		err = wnd.Destroy()
+	confirm := handler.OnClose(wnd)
+	if confirm {
+		wnd.Destroy()
 	}
-	handleError(wnd, handler, err)
 }
 
 //export goDebug
