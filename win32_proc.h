@@ -9,7 +9,7 @@ static BOOL ogl30_message_proc(void *const data, HWND const hWnd, const UINT mes
 	window_data_t *const wnd_data = (window_data_t*)data;
 	switch (message) {
 	case WM_CLOSE:
-		goOnClose(wnd_data->go_obj_id);
+		oglwndOnClose(wnd_data->go_obj_id);
 		return TRUE;
 	}
 	return FALSE;

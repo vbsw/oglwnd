@@ -10,21 +10,25 @@ package oglwnd
 
 import "C"
 import (
-	"github.com/vbsw/golib/callback"
+	"fmt"
 	"unsafe"
 )
 
 const (
-	notAllocated = "window's C memory not allocated"
-	notInitialized = "window not initialized"
-	notInitializedCtx = "opengl context not initialized"
-	notInitializedFuncs = "window functions not initialized"
+	notAllocated         = "window's C memory not allocated"
+	notInitialized       = "window not initialized"
+	notInitializedCtx    = "opengl context not initialized"
+	notInitializedFuncs  = "window functions not initialized"
 	notInitializedDtFunc = "window destroy function not initialized"
 )
 
-type Window struct {
-	Ptr unsafe.Pointer
-	Initialized bool
+// Properties are the properties of the window.
+type Properties struct {
+	ClientX, ClientY, ClientWidth, ClientHeight                      int
+	ClientMinWidth, ClientMinHeight, ClientMaxWidth, ClientMaxHeight int
+	MouseX, MouseY                                                   int
+	MouseLocked, Borderless, Dragable, Resizable, Fullscreen         bool
+	Destroy bool
 }
 
 // Context represents OpenGL context.
@@ -34,9 +38,112 @@ type Context interface {
 	SwapBuffers() error
 }
 
+type Window struct {
+	Ptr         unsafe.Pointer
+	Initialized bool
+	Props       Properties
+	objId       int
+	err         error
+}
+
+// Handler is an abstraction of event handling.
+type Handler interface {
+	OnCreate(*Window) error
+	OnShow(*Window) error
+	OnClose(*Window) error
+	OnCustom(*Window, interface{}) error
+	OnDestroy(*Window)
+	OnError(*Window, error)
+}
+
+// DefaultHandler is the default implementation of event handler.
+type DefaultHandler struct {
+}
+
+// tCallback holds objects identified by ids.
+type tCallback struct {
+	wnds   []*Window
+	hndls  []Handler
+	unused []int
+}
+
 var (
-	cb callback.Callback
+	cb tCallback
 )
+
+func (wnd *Window) registerHandler(handler Handler) C.int {
+	wnd.objId = cb.Register(wnd, handler)
+	return C.int(wnd.objId)
+}
+
+func (wnd *Window) unregisterHandler() {
+	cb.Unregister(wnd.objId)
+}
+
+func (wnd *Window) onCreate() {
+	handler := cb.hndls[wnd.objId]
+	handler.OnCreate(wnd)
+}
+
+// Register returns a new id number for wnd and handler. both will not be garbage collected until
+// Unregister is called with this id.
+func (cb *tCallback) Register(wnd *Window, handler Handler) int {
+	if len(cb.unused) == 0 {
+		cb.wnds = append(cb.wnds, wnd)
+		cb.hndls = append(cb.hndls, handler)
+		return len(cb.wnds) - 1
+	}
+	indexLast := len(cb.unused) - 1
+	indexObj := cb.unused[indexLast]
+	cb.unused = cb.unused[:indexLast]
+	cb.wnds[indexObj] = wnd
+	cb.hndls[indexObj] = handler
+	return indexObj
+}
+
+// Unregister makes window and handler no more identified by id.
+// These objects may be garbage collected, now.
+func (cb *tCallback) Unregister(id int) {
+	cb.wnds[id] = nil
+	cb.hndls[id] = nil
+	cb.unused = append(cb.unused, id)
+}
+
+// OnCreate is called after window has been created, but before it is made visible.
+func (hand *DefaultHandler) OnCreate(wnd *Window) error {
+	return nil
+}
+
+// OnShow is called after the window has been made visible.
+func (hand *DefaultHandler) OnShow(wnd *Window) error {
+	return nil
+}
+
+// OnClose is called at window's close request.
+func (hand *DefaultHandler) OnClose(wnd *Window) error {
+	wnd.Destroy()
+	return nil
+}
+
+// OnCustom is called at window's close request.
+func (hand *DefaultHandler) OnCustom(wnd *Window, event interface{}) error {
+	return nil
+}
+
+// OnDestroy is called before window is destroyed.
+func (hand *DefaultHandler) OnDestroy(wnd *Window) {
+}
+
+// OnError is called, if any handler function returns error.
+func (hand *DefaultHandler) OnError(wnd *Window, err error) {
+	fmt.Println("error:", err.Error())
+}
+
+func handleError(wnd *Window, handler Handler, err error) {
+	if err != nil {
+		handler.OnError(wnd, err)
+	}
+}
 
 // toCInt converts bool value to C int value.
 func toCInt(b bool) C.int {
@@ -184,12 +291,6 @@ type Props struct {
 	MouseX, MouseY                                                   int
 	MouseLocked, Borderless, Dragable, Resizable, Fullscreen         bool
 	Quit                                                             bool
-}
-
-// Handler is an abstraction of event handling.
-type Handler interface {
-	OnClose(*Props) error
-	OnUpdate(*Props) error
 }
 
 // DefaultHandler is the default handling of events.

@@ -32,12 +32,10 @@ static void ogl30_window_create(void *const data, void **const err) {
 	if (err[0] == NULL) {
 		window_data_t *const wnd_data = (window_data_t*)data;
 		LPCTSTR const title = ensure_title(wnd_data);
-		const int x = wnd_data[0].client.x_wnd;
-		const int y = wnd_data[0].client.y_wnd;
-		const int width = wnd_data[0].client.width_wnd;
-		const int height = wnd_data[0].client.height_wnd;
-		const DWORD style = wnd_data[0].style;
-		wnd_data[0].wnd.hndl = CreateWindow(wnd_data[0].wnd.cls.lpszClassName, title, style, x, y, width, height, NULL, NULL, wnd_data[0].wnd.cls.hInstance, (LPVOID)data);
+		int x, y, w, h;
+		window_metrics(wnd_data, &x, &y, &w, &h);
+		const DWORD style = wnd_data[0].config.style;
+		wnd_data[0].wnd.hndl = CreateWindow(wnd_data[0].wnd.cls.lpszClassName, title, style, x, y, w, h, NULL, NULL, wnd_data[0].wnd.cls.hInstance, (LPVOID)data);
 		if (wnd_data[0].wnd.hndl) {
 			if (wnd_data[0].title) {
 				free(wnd_data[0].title);
@@ -50,8 +48,6 @@ static void ogl30_window_create(void *const data, void **const err) {
 	}
 }
 
-	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
-	PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 static void ogl30_context_create(void *const data, void **const err) {
 	if (err[0] == NULL) {
 		window_data_t *const wnd_data = (window_data_t*)data;

@@ -1,5 +1,5 @@
 /*
- *          Copyright 2021, Vitali Baumtrok.
+ *          Copyright 2022, Vitali Baumtrok.
  * Distributed under the Boost Software License, Version 1.0.
  *     (See accompanying file LICENSE or copy at
  *        http://www.boost.org/LICENSE_1_0.txt)
@@ -24,6 +24,7 @@ type Parameters struct {
 	ClientMinWidth, ClientMinHeight, ClientMaxWidth, ClientMaxHeight int
 	Centered, MouseLocked, Borderless, Dragable                      bool
 	Resizable, Fullscreen, Threaded, AutoUpdate                      bool
+	Handler Handler
 }
 
 type tContext struct {
@@ -87,16 +88,36 @@ func (context *tContext) SwapBuffers() error {
 	return toError(errC)
 }
 
+func (wnd *Window) Allocate() error {
+	var errC unsafe.Pointer
+	C.oglwnd_window_allocate(&wnd.Ptr, &errC)
+	return toError(errC)
+}
+
 func (wnd *Window) Init(params *Parameters) error {
 	var err error
 	if wnd.Ptr != nil {
+		wnd.Initialized = false
 		params = ensureParams(params)
 		err = wnd.init(params)
-		wnd.Initialized = bool(err == nil)
+		if err == nil {
+			wnd.Initialized = true
+		} else {
+			wnd.unregisterHandler()
+		}
 	} else {
 		panic(notAllocated)
 	}
 	return err
+}
+
+// SetWGLFunctions sets wglChoosePixelFormatARB and wglCreateContextAttribsARB.
+func (wnd *Window) SetWGLFunctions(wglCPF, wglCCA unsafe.Pointer) {
+	if wnd.Ptr != nil {
+		C.oglwnd_window_set_wgl_functions(wnd.Ptr, wglCPF, wglCCA)
+	} else {
+		panic(notAllocated)
+	}
 }
 
 func (wnd *Window) Create() error {
@@ -105,6 +126,9 @@ func (wnd *Window) Create() error {
 		if wnd.Initialized {
 			if C.oglwnd_window_funcs_avail(wnd.Ptr) == 1 {
 				C.oglwnd_window_create(wnd.Ptr, &errC)
+				if errC == nil {
+					wnd.onCreate()
+				}
 			} else {
 				panic(notInitializedFuncs)
 			}
@@ -132,30 +156,43 @@ func (wnd *Window) Context() Context {
 
 // Show makes window visible.
 func (wnd *Window) Show() error {
-	var errC unsafe.Pointer
 	if wnd.Ptr != nil {
+		var errC unsafe.Pointer
 		C.oglwnd_window_show(wnd.Ptr, &errC)
-	} else {
-		panic(notAllocated)
+		return toError(errC)
 	}
-	return toError(errC)
+	panic(notAllocated)
 }
 
 // Destroy
 func (wnd *Window) Destroy() error {
 	var errC unsafe.Pointer
-	if wnd.Ptr != nil {
-		if wnd.Initialized {
-			if C.oglwnd_window_dt_func_avail(wnd.Ptr) == 1 {
-				C.oglwnd_window_destroy(wnd.Ptr, &errC)
-			} else {
-				panic(notInitializedDtFunc)
-			}
-		}
-	} else {
-		panic(notAllocated)
+	if wnd.Ptr != nil && wnd.Initialized && C.oglwnd_window_dt_func_avail(wnd.Ptr) == 1 {
+		C.oglwnd_window_destroy(wnd.Ptr, &errC)
 	}
 	return toError(errC)
+}
+
+// UpdateProperties sets Props to current values.
+func (wnd *Window) UpdateProperties() {
+	if wnd.Ptr != nil {
+		var x, y, w, h, wn, hn C.int
+		var wx, hx, b, d, r, f, l C.int
+		C.oglwnd_window_props(wnd.Ptr, &x, &y, &w, &h, &wn, &hn, &wx, &hx, &b, &d, &r, &f, &l)
+		wnd.Props.ClientX = int(x)
+		wnd.Props.ClientY = int(y)
+		wnd.Props.ClientWidth = int(w)
+		wnd.Props.ClientHeight = int(h)
+		wnd.Props.ClientMinWidth = int(wn)
+		wnd.Props.ClientMinHeight = int(hn)
+		wnd.Props.ClientMaxWidth = int(wx)
+		wnd.Props.ClientMaxHeight = int(hx)
+		wnd.Props.Borderless = bool(b != 0)
+		wnd.Props.Dragable = bool(d != 0)
+		wnd.Props.Resizable = bool(r != 0)
+		wnd.Props.Fullscreen = bool(f != 0)
+		wnd.Props.MouseLocked = bool(l != 0)
+	}
 }
 
 // ReleaseMemory deallocates memory Ptr points to.
@@ -163,20 +200,16 @@ func (wnd *Window) ReleaseMemory() error {
 	var errC unsafe.Pointer
 	if wnd.Ptr != nil {
 		C.oglwnd_window_free(wnd.Ptr, &errC)
+		cb.Unregister(wnd.objId)
 		wnd.Ptr = nil
 	}
-	return toError(errC)
-}
-
-func (wnd *Window) Allocate() error {
-	var errC unsafe.Pointer
-	C.oglwnd_window_allocate(&wnd.Ptr, &errC)
 	return toError(errC)
 }
 
 func (wnd *Window) init(params *Parameters) error {
 	var errC unsafe.Pointer
 	if params.Dummy {
+		wnd.registerHandler(params.Handler)
 		C.oglwnd_window_init_dummy(wnd.Ptr, &errC)
 	} else {
 		x := C.int(params.ClientX)
@@ -193,7 +226,7 @@ func (wnd *Window) init(params *Parameters) error {
 		d := toCInt(params.Dragable)
 		r := toCInt(params.Resizable)
 		f := toCInt(params.Fullscreen)
-		objC := C.int(cb.Register(wnd))
+		objC := wnd.registerHandler(params.Handler)
 		C.oglwnd_window_init_opengl30(wnd.Ptr, objC, x, y, w, h, wn, hn, wx, hx, b, d, r, f, l, c, &errC)
 	}
 	return toError(errC)
@@ -204,11 +237,9 @@ func ensureParams(params *Parameters) *Parameters {
 		params = new(Parameters)
 		params.Reset()
 	}
-/*
-	if params.handler == nil {
-		params.handler = new(DefaultHandler)
+	if params.Handler == nil {
+		params.Handler = new(DefaultHandler)
 	}
-*/
 	return params
 }
 
@@ -292,23 +323,17 @@ func toError(errC unsafe.Pointer) error {
 	return nil
 }
 
-//export goOnClose
-func goOnClose(objIdC C.int) {
-	if wnd, ok := cb.Obj(int(objIdC)).(*Window); ok {
-		println("close")
-		wnd.Destroy()
+//export oglwndOnClose
+func oglwndOnClose(objIdC C.int) {
+	wnd := cb.wnds[int(objIdC)]
+	handler := cb.hndls[wnd.objId]
+	wnd.Props.Destroy = false
+	err := handler.OnClose(wnd)
+	handleError(wnd, handler, err)
+	if wnd.err != nil || wnd.Props.Destroy {
+		err = wnd.Destroy()
 	}
-/*
-	if window, ok := hndlValue(int(hndlC)).(*Window); ok {
-		window.updateProps()
-		propsBak := window.props
-		window.err = window.handler.OnClose(&window.props)
-		window.props.Destroy = bool(window.err != nil)
-		if window.props != propsBak {
-			window.applyProps()
-		}
-	}
-*/
+	handleError(wnd, handler, err)
 }
 
 //export goDebug

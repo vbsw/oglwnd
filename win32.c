@@ -20,7 +20,7 @@
 #include "_cgo_export.h"
 
 /* Exported functions from Go are:                          */
-/* goOnClose                                                */
+/* oglwndOnClose                                            */
 /* goOnFirstUpdate                                          */
 /* goOnUpdate                                               */
 /* goOnKeyDown                                              */
@@ -96,11 +96,16 @@ typedef struct {
 } client_t;
 
 typedef struct {
+	int width_min, height_min, width_max, height_max;
+	int borderless, dragable, fullscreen, resizable, locked;
+	DWORD style;
+} config_t;
+
+typedef struct {
 	window_t wnd;
 	client_t client;
-	HMONITOR monitor;
 	LPTSTR title;
-	DWORD style;
+	config_t config;
 	BOOL initialized;
 	int go_obj_id;
 	void *ext1;
@@ -167,6 +172,45 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			result = DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return result;
+}
+
+static void window_style_update(window_data_t *const wnd_data) {
+	if (wnd_data[0].config.borderless)
+		if (wnd_data[0].config.resizable)
+			wnd_data[0].config.style = WS_POPUP;
+		else
+			wnd_data[0].config.style = WS_POPUP;
+	else
+		if (wnd_data[0].config.resizable)
+			wnd_data[0].config.style = WS_OVERLAPPEDWINDOW;
+		else
+			wnd_data[0].config.style = WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX;
+}
+
+static void window_metrics(window_data_t *const wnd_data, int *const x, int *const y, int *const w, int *const h) {
+	RECT rect = { wnd_data[0].client.x_wnd, wnd_data[0].client.y_wnd, wnd_data[0].client.x_wnd + wnd_data[0].client.width_wnd, wnd_data[0].client.y_wnd + wnd_data[0].client.height_wnd };
+	AdjustWindowRect(&rect, wnd_data[0].config.style, FALSE);
+	x[0] = rect.left;
+	y[0] = rect.top;
+	w[0] = rect.right - rect.left;
+	h[0] = rect.bottom - rect.top;
+}
+
+static void monitor_metrics(HMONITOR const monitor, int *const x, int *const y, int *const w, int *const h) {
+	MONITORINFO mi = { sizeof(mi) };
+	GetMonitorInfo(monitor, &mi);
+	x[0] = mi.rcMonitor.left;
+	y[0] = mi.rcMonitor.top;
+	w[0] = mi.rcMonitor.right - mi.rcMonitor.left;
+	h[0] = mi.rcMonitor.bottom - mi.rcMonitor.top;
+}
+
+static void window_config_center(window_data_t *const wnd_data, const int monitor_id) {
+	int wx, wy, ww, wh, mx, my, mw, mh;
+	window_metrics(wnd_data, &wx, &wy, &ww, &wh);
+	monitor_metrics(MonitorFromWindow(NULL, MONITOR_DEFAULTTOPRIMARY), &mx, &my, &mw, &mh);
+	wnd_data[0].client.x_wnd = mx + (mw - ww) / 2 + (wnd_data[0].client.x_wnd - wx);
+	wnd_data[0].client.y_wnd = my + (mh - wh) / 2 + (wnd_data[0].client.y_wnd - wy);
 }
 
 #include "win32_dummy.h"
@@ -252,7 +296,29 @@ void oglwnd_window_init_opengl30(void *const data, const int go_obj, const int x
 		wnd_data[0].destroy = ogl30_destroy;
 		wnd_data[0].free = ogl30_free;
 		wnd_data[0].go_obj_id = go_obj;
+		wnd_data[0].client.x_wnd = x;
+		wnd_data[0].client.y_wnd = y;
+		wnd_data[0].client.width_wnd = w;
+		wnd_data[0].client.height_wnd = h;
+		wnd_data[0].config.width_min = wn;
+		wnd_data[0].config.height_min = hn;
+		wnd_data[0].config.width_max = wx;
+		wnd_data[0].config.height_max = hx;
+		wnd_data[0].config.borderless = b;
+		wnd_data[0].config.dragable = d;
+		wnd_data[0].config.fullscreen = f;
+		wnd_data[0].config.resizable = r;
+		wnd_data[0].config.locked = l;
+		window_style_update(wnd_data);
+		if (c)
+			window_config_center(wnd_data, 0);
 	}
+}
+
+void oglwnd_window_set_wgl_functions(void *const data, void *const cpf, void *const cca) {
+	window_data_t *const wnd_data = (window_data_t*)data;
+	wnd_data[0].wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)cpf;
+	wnd_data[0].wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)cca;
 }
 
 void oglwnd_context_make_current(void *const data, void **const err) {
@@ -288,6 +354,25 @@ void oglwnd_window_context(void *const data, void **const ctx) {
 void oglwnd_window_show(void *const data, void **const err) {
 	window_data_t *const wnd_data = (window_data_t*)data;
 	ShowWindow(wnd_data[0].wnd.hndl, SW_SHOWDEFAULT);
+}
+
+void oglwnd_window_props(void *const data, int *const x, int *const y, int *const w, int *const h, int *const wn, int *const hn, int *const wx, int *const hx, int *const b, int *const d, int *const r, int *const f, int *const l) {
+	window_data_t *const wnd_data = (window_data_t*)data;
+	x[0] = wnd_data[0].client.x;
+	y[0] = wnd_data[0].client.y;
+	w[0] = wnd_data[0].client.width;
+	h[0] = wnd_data[0].client.height;
+/*
+	wn[0] = wnd_data[0].config.width_min;
+	hn[0] = wnd_data[0].config.height_min;
+	wx[0] = wnd_data[0].config.width_max;
+	hx[0] = wnd_data[0].config.height_max;
+	b[0] = wnd_data[0].config.borderless;
+	d[0] = wnd_data[0].config.dragable;
+	r[0] = wnd_data[0].config.resizable;
+	f[0] = wnd_data[0].config.fullscreen;
+	l[0] = wnd_data[0].config.locked;
+*/
 }
 
 int oglwnd_window_funcs_avail(void *const data) {
@@ -327,21 +412,6 @@ void oglwnd_window_destroy(void *const data) {
 			PostQuitMessage(0);
 		free(wnd_data);
 	}
-}
-
-static DWORD get_style() {
-	DWORD style;
-	if (config.borderless)
-		if (config.resizable)
-			style = WS_POPUP;
-		else
-			style = WS_POPUP;
-	else
-		if (config.resizable)
-			style = WS_OVERLAPPEDWINDOW;
-		else
-			style = WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX;
-	return style;
 }
 
 void oglwnd_free_mem(void *const mem) {
